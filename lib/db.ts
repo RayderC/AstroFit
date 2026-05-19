@@ -2,12 +2,23 @@ import Database from "better-sqlite3";
 import path from "path";
 import fs from "fs";
 
-const dbPath = process.env.DATABASE_PATH || path.resolve(process.cwd(), "comicorbit.db");
-fs.mkdirSync(path.dirname(dbPath), { recursive: true });
+// During `next build`, 23 workers all import this module simultaneously and
+// compete for the same SQLite file. Use an in-memory DB for the build phase
+// so there is no file contention — callers that need the DB (e.g. generateMetadata)
+// already catch errors and fall back to defaults.
+const isBuildPhase = process.env.NEXT_PHASE === "phase-production-build";
+
+const dbPath = isBuildPhase
+  ? ":memory:"
+  : process.env.DATABASE_PATH || path.resolve(process.cwd(), "comicorbit.db");
+
+if (!isBuildPhase) {
+  fs.mkdirSync(path.dirname(dbPath), { recursive: true });
+}
 
 const db = new Database(dbPath);
-db.pragma("journal_mode = WAL");
 db.pragma("busy_timeout = 5000");
+db.pragma("journal_mode = WAL");
 db.pragma("foreign_keys = ON");
 
 db.exec(`
@@ -127,8 +138,10 @@ const migrations = [
   `ALTER TABLE series ADD COLUMN original_cover_path TEXT NOT NULL DEFAULT ''`,
 ];
 
-for (const sql of migrations) {
-  try { db.exec(sql); } catch { /* column/table already correct */ }
+if (!isBuildPhase) {
+  for (const sql of migrations) {
+    try { db.exec(sql); } catch { /* column/table already correct */ }
+  }
 }
 
 export function getSiteConfig(): Record<string, string> {
