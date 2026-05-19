@@ -1,5 +1,8 @@
-const CACHE_NAME = 'comicorbit-v1';
-const APP_SHELL = ['/', '/library', '/manifest.json', '/favicon.png'];
+const CACHE_NAME = 'comicorbit-v2';
+// Only cache files that are always publicly accessible (no auth redirect).
+// Authenticated pages like / and /library would 302 → /login during install,
+// causing cache.addAll() to throw and break the whole service worker install.
+const APP_SHELL = ['/manifest.json', '/favicon.png'];
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
