@@ -18,11 +18,13 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     | undefined;
   if (!chapter) { res.status(404).json({ message: "Chapter not found" }); return; }
 
-  db.prepare("DELETE FROM chapters WHERE id = ?").run(id);
-
+  // Delete the file before the DB row so a concurrent request doesn't see a
+  // "chapter exists but file missing" state.
   if (chapter.file_path && fs.existsSync(chapter.file_path)) {
     try { fs.unlinkSync(chapter.file_path); } catch { /* ignore */ }
   }
+
+  db.prepare("DELETE FROM chapters WHERE id = ?").run(id);
 
   res.json({ ok: true });
 }

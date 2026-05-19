@@ -78,6 +78,17 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       res.status(400).json({ message: "type must be 'manga' or 'comic'" });
       return;
     }
+    if (typeof source_url !== "string") {
+      res.status(400).json({ message: "source_url must be a string" });
+      return;
+    }
+    try {
+      const parsed = new URL(source_url);
+      if (parsed.protocol !== "http:" && parsed.protocol !== "https:") throw new Error("bad protocol");
+    } catch {
+      res.status(400).json({ message: "source_url must be a valid http/https URL" });
+      return;
+    }
     try { getSource(source); } catch {
       res.status(400).json({ message: `Unknown source: ${source}` });
       return;

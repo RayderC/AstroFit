@@ -138,12 +138,16 @@ async function downloadCoverIfMissing(s: SeriesRow, folder: string, cover?: stri
     const r = await fetch(cover, {
       headers: {
         "User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36",
-        "Referer": "https://ww1.mangafreak.me/",
         "Accept": "image/avif,image/webp,image/apng,image/*,*/*;q=0.8",
       },
       signal: AbortSignal.timeout(15_000),
     });
     if (!r.ok) return;
+    const ct = (r.headers.get("content-type") || "").split(";")[0].trim();
+    if (!ct.startsWith("image/")) {
+      console.warn(`[downloader] cover fetch returned non-image content-type "${ct}" for ${cover}`);
+      return;
+    }
     const buf = Buffer.from(await r.arrayBuffer());
     fs.writeFileSync(target, buf);
     db.prepare("UPDATE series SET cover_path = ? WHERE id = ?").run(target, s.id);

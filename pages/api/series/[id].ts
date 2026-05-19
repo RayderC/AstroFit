@@ -72,7 +72,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         db.prepare("DELETE FROM series_tags WHERE series_id = ?").run(id);
         const ins = db.prepare("INSERT OR IGNORE INTO series_tags (series_id, tag) VALUES (?, ?)");
         for (const t of list) {
-          const v = (t || "").trim().slice(0, 100); // max 100 chars per tag
+          // Strip all HTML tags and control characters, then trim/truncate.
+          const v = (t || "").replace(/<[^>]*>/g, "").replace(/[^\x20-\x7E -￿]/g, "").trim().slice(0, 100);
           if (v) ins.run(id, v);
         }
       });

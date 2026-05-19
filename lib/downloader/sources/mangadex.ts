@@ -64,7 +64,7 @@ export const mangadexSource: Source = {
     u.searchParams.append("contentRating[]", "safe");
     u.searchParams.append("contentRating[]", "suggestive");
     u.searchParams.append("contentRating[]", "erotica");
-    const res = await fetch(u, { headers: UA });
+    const res = await fetch(u, { headers: UA, signal: AbortSignal.timeout(30_000) });
     if (!res.ok) return [];
     const json = (await res.json()) as { data: MdManga[] };
     return (json.data || []).map((m) => {
@@ -88,7 +88,7 @@ export const mangadexSource: Source = {
     const id = mangaIdFromUrl(url);
     const u = new URL(`${API}/manga/${id}`);
     u.searchParams.append("includes[]", "cover_art");
-    const res = await fetch(u, { headers: UA });
+    const res = await fetch(u, { headers: UA, signal: AbortSignal.timeout(30_000) });
     if (!res.ok) throw new Error(`MangaDex metadata failed: ${res.status}`);
     const json = (await res.json()) as { data: MdManga };
     const m = json.data;
@@ -118,7 +118,7 @@ export const mangadexSource: Source = {
       u.searchParams.append("contentRating[]", "safe");
       u.searchParams.append("contentRating[]", "suggestive");
       u.searchParams.append("contentRating[]", "erotica");
-      const res = await fetch(u, { headers: UA });
+      const res = await fetch(u, { headers: UA, signal: AbortSignal.timeout(30_000) });
       if (!res.ok) break;
       const json = (await res.json()) as { data: MdChapter[]; total: number };
       for (const c of json.data) {
@@ -142,7 +142,8 @@ export const mangadexSource: Source = {
   },
 
   async fetchChapter(ref, onProgress, signal): Promise<ChapterPayload> {
-    const res = await fetch(`${API}/at-home/server/${ref.externalId}`, { headers: UA, signal });
+    const combined = signal ? AbortSignal.any([signal, AbortSignal.timeout(30_000)]) : AbortSignal.timeout(30_000);
+    const res = await fetch(`${API}/at-home/server/${ref.externalId}`, { headers: UA, signal: combined });
     if (!res.ok) throw new Error(`MangaDex at-home failed: ${res.status}`);
     const json = (await res.json()) as { baseUrl: string; chapter: { hash: string; data: string[] } };
     const urls = json.chapter.data.map((f) => `${json.baseUrl}/data/${json.chapter.hash}/${f}`);
@@ -167,7 +168,9 @@ async function fetchWithRetry(url: string, signal?: AbortSignal, attempts = 3): 
   let lastErr: unknown;
   for (let i = 0; i < attempts; i++) {
     try {
-      const r = await fetch(url, { headers: UA, signal });
+      const perAttempt = AbortSignal.timeout(30_000);
+      const combined = signal ? AbortSignal.any([signal, perAttempt]) : perAttempt;
+      const r = await fetch(url, { headers: UA, signal: combined });
       if (r.ok) return r;
       lastErr = new Error(`HTTP ${r.status}`);
     } catch (e) {

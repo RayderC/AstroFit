@@ -4,6 +4,9 @@ import bcrypt from "bcryptjs";
 import { getIronSession } from "iron-session";
 import { sessionOptions, User } from "../../lib/session";
 
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const ALLOWED_PROFILE_FIELDS = new Set(["email", "password"]);
+
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   const session = await getIronSession<{ user?: User }>(req, res, sessionOptions);
   if (!session.user) {
@@ -27,14 +30,30 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const vals: unknown[] = [];
 
     if (email !== undefined) {
-      if (typeof email !== "string") { res.status(400).json({ message: "Invalid email" }); return; }
+      if (typeof email !== "string") {
+        res.status(400).json({ message: "Invalid email" });
+        return;
+      }
+      const trimmed = email.trim();
+      if (trimmed !== "" && !EMAIL_RE.test(trimmed)) {
+        res.status(400).json({ message: "Invalid email format" });
+        return;
+      }
+      if (trimmed.length > 254) {
+        res.status(400).json({ message: "Email must be under 254 characters" });
+        return;
+      }
       sets.push("email = ?");
-      vals.push(email.trim());
+      vals.push(trimmed);
     }
 
     if (password !== undefined) {
-      if (typeof password !== "string" || password.length < 5) {
-        res.status(400).json({ message: "Password must be at least 5 characters" });
+      if (typeof password !== "string" || password.length < 8) {
+        res.status(400).json({ message: "Password must be at least 8 characters" });
+        return;
+      }
+      if (password.length > 200) {
+        res.status(400).json({ message: "Password must be under 200 characters" });
         return;
       }
       sets.push("password = ?");
@@ -42,6 +61,13 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     }
 
     if (sets.length === 0) { res.status(400).json({ message: "Nothing to update" }); return; }
+
+    // Verify only whitelisted columns are being set (defense-in-depth)
+    const colNames = sets.map((s) => s.split(" ")[0]);
+    if (colNames.some((c) => !ALLOWED_PROFILE_FIELDS.has(c))) {
+      res.status(400).json({ message: "Invalid field" });
+      return;
+    }
 
     db.prepare(`UPDATE users SET ${sets.join(", ")} WHERE id = ?`).run(...vals, userId);
     res.json({ ok: true });

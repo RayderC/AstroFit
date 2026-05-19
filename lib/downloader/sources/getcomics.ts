@@ -25,12 +25,31 @@ const PREFERRED_HOSTS = [
 ];
 const UNSUPPORTED_HOSTS = /mega\.nz|mega\.io|terabox|4shared|zippyshare|rapidgator/i;
 
+void PREFERRED_HOSTS; // referenced for documentation; scoring is inline below
+
 function parseIssueNumber(text: string): number {
   const m =
     text.match(/#\s*(\d+(?:\.\d+)?)/) ||
     text.match(/\bvol(?:ume)?\.?\s*(\d+(?:\.\d+)?)/i) ||
     text.match(/issue\s+(\d+(?:\.\d+)?)/i);
   return m ? parseFloat(m[1]) : 1;
+}
+
+function isBinaryContentType(ct: string): boolean {
+  if (ct.startsWith("application/octet-stream")) return true;
+  if (ct.startsWith("application/zip")) return true;
+  if (ct.startsWith("application/x-cbz")) return true;
+  if (ct.startsWith("application/x-rar")) return true;
+  if (ct.startsWith("application/x-7z")) return true;
+  if (ct.startsWith("application/") && !ct.includes("html") && !ct.includes("json") && !ct.includes("xml")) return true;
+  return false;
+}
+
+function extFromUrlOrCt(url: string, ct: string): "cbz" | "cbr" | "zip" {
+  const m = url.match(/\.(cbz|cbr|zip|rar)(?:\?|$)/i);
+  if (m) return m[1].toLowerCase() === "rar" ? "cbr" : (m[1].toLowerCase() as "cbz" | "cbr" | "zip");
+  if (ct.includes("rar")) return "cbr";
+  return "cbz";
 }
 
 // PixelDrain direct download: /u/{id} or /l/{id} → /api/file/{id}?download
@@ -40,7 +59,11 @@ async function downloadFromPixelDrain(url: string, signal?: AbortSignal): Promis
   const fileId = m[1];
   const apiUrl = `https://pixeldrain.com/api/file/${fileId}?download`;
   try {
-    const r = await fetch(apiUrl, { headers: UA, signal });
+    const combined = AbortSignal.any([
+      AbortSignal.timeout(120_000),
+      ...(signal ? [signal] : []),
+    ]);
+    const r = await fetch(apiUrl, { headers: UA, signal: combined });
     if (!r.ok) return null;
     return Buffer.from(await r.arrayBuffer());
   } catch { return null; }
@@ -53,7 +76,10 @@ export const getcomicsSource: Source = {
   async search(query: string): Promise<SearchResult[]> {
     let res: Response;
     try {
-      res = await fetch(`${BASE}/?s=${encodeURIComponent(query)}`, { headers: UA });
+      res = await fetch(`${BASE}/?s=${encodeURIComponent(query)}`, {
+        headers: UA,
+        signal: AbortSignal.timeout(30_000),
+      });
     } catch (e) {
       console.warn("[getcomics] search fetch failed:", (e as Error).message);
       return [];
@@ -87,7 +113,7 @@ export const getcomicsSource: Source = {
   },
 
   async getMetadata(url: string): Promise<SeriesMetadata> {
-    const res = await fetch(url, { headers: UA });
+    const res = await fetch(url, { headers: UA, signal: AbortSignal.timeout(30_000) });
     if (!res.ok) throw new Error(`GetComics metadata failed: ${res.status}`);
     const html = await res.text();
     const $ = cheerio.load(html);
@@ -119,7 +145,15 @@ export const getcomicsSource: Source = {
   },
 
   async fetchChapter(ref: ChapterRef, onProgress: ProgressFn, signal?: AbortSignal): Promise<ChapterPayload> {
-    const postRes = await fetch(ref.externalId, { headers: { ...UA, Referer: BASE }, signal });
+    const fetchSignal = (ms: number) => AbortSignal.any([
+      AbortSignal.timeout(ms),
+      ...(signal ? [signal] : []),
+    ]);
+
+    const postRes = await fetch(ref.externalId, {
+      headers: { ...UA, Referer: BASE },
+      signal: fetchSignal(30_000),
+    });
     if (!postRes.ok) throw new Error(`GetComics post failed: ${postRes.status}`);
     const html = await postRes.text();
     const $ = cheerio.load(html);
@@ -201,6 +235,8 @@ export const getcomicsSource: Source = {
       }
 
       // ── Try to resolve to a direct file through redirects ──
+      // resolveToDirectFile buffers the file body when it successfully identifies one,
+      // so we don't need to re-download it here (avoids double-download).
       const resolved = await resolveToDirectFile(candidateUrl, BASE, signal);
       if (!resolved) continue;
 
@@ -209,12 +245,27 @@ export const getcomicsSource: Source = {
 
       try {
         onProgress(0, 1);
-        const fileRes = await fetch(resolved.fileUrl, { headers: { ...UA, Referer: BASE }, signal });
-        if (!fileRes.ok) continue;
-        const buf = Buffer.from(await fileRes.arrayBuffer());
+
+        let buf: Buffer;
+        let ext: "cbz" | "cbr" | "zip" = "cbz";
+
+        if (resolved.data) {
+          // Body was already buffered during URL resolution — use it directly.
+          buf = resolved.data;
+          ext = (resolved.ext as "cbz" | "cbr" | "zip") || "cbz";
+        } else {
+          // URL was resolved but body wasn't buffered (e.g., followed a redirect chain
+          // that ended with a URL we recognised but didn't read). Fetch now.
+          const fileRes = await fetch(resolved.fileUrl, {
+            headers: { ...UA, Referer: BASE },
+            signal: fetchSignal(180_000),
+          });
+          if (!fileRes.ok) continue;
+          buf = Buffer.from(await fileRes.arrayBuffer());
+          ext = extFromUrlOrCt(resolved.fileUrl, fileRes.headers.get("content-type") || "");
+        }
+
         onProgress(1, 1);
-        const extMatch = resolved.fileUrl.match(/\.(cbz|cbr|zip|rar)(?:\?|$)/i);
-        const ext = (extMatch?.[1].toLowerCase() || "cbz") as "cbz" | "cbr" | "zip";
         return { kind: "archive", data: buf, ext };
       } catch (e) {
         if ((e as { name?: string }).name === "AbortError") throw e;
@@ -230,7 +281,14 @@ export const getcomicsSource: Source = {
 };
 
 // ── Resolve a URL to a direct downloadable file, following redirects ──
-interface ResolveResult { fileUrl?: string; unsupported?: string; }
+// Returns the file URL and, when possible, the buffered file body so the
+// caller does not need to download the file a second time.
+interface ResolveResult {
+  fileUrl?: string;
+  data?: Buffer;   // pre-buffered file body when available
+  ext?: string;
+  unsupported?: string;
+}
 
 async function resolveToDirectFile(
   startUrl: string,
@@ -240,35 +298,37 @@ async function resolveToDirectFile(
 ): Promise<ResolveResult | null> {
   if (hops > 6) return null;
 
-  if (/\.(cbz|cbr|zip|rar)(\?[^"]*)?$/i.test(startUrl)) return { fileUrl: startUrl };
+  if (/\.(cbz|cbr|zip|rar)(\?[^"]*)?$/i.test(startUrl)) {
+    // Looks like a direct file URL — caller will fetch it.
+    return { fileUrl: startUrl };
+  }
   if (UNSUPPORTED_HOSTS.test(startUrl)) {
     try { return { unsupported: new URL(startUrl).hostname }; } catch { return null; }
   }
 
-  // PixelDrain handled separately above
+  // PixelDrain handled separately in fetchChapter
   if (/pixeldrain\.com/i.test(startUrl)) return null;
+
+  const fetchSignal = AbortSignal.any([
+    AbortSignal.timeout(120_000),
+    ...(signal ? [signal] : []),
+  ]);
 
   try {
     const res = await fetch(startUrl, {
       headers: { ...UA, Referer: referer },
       redirect: "follow",
-      signal,
+      signal: fetchSignal,
     });
     const finalUrl = res.url;
+    const ct = res.headers.get("content-type")?.split(";")[0].trim() || "";
 
-    // HTTP redirect landed on a file
-    if (/\.(cbz|cbr|zip|rar)(\?[^"]*)?$/i.test(finalUrl)) return { fileUrl: finalUrl };
-
-    // Content-Type indicates binary file
-    const ct = res.headers.get("content-type") || "";
-    if (
-      ct.startsWith("application/octet-stream") ||
-      ct.startsWith("application/zip") ||
-      ct.startsWith("application/x-cbz") ||
-      ct.startsWith("application/x-rar") ||
-      (ct.startsWith("application/") && !ct.includes("html") && !ct.includes("json") && !ct.includes("xml"))
-    ) {
-      return { fileUrl: finalUrl };
+    // If the final URL or content-type indicates a binary file, buffer and return it
+    // so the caller can use the data directly without a second fetch.
+    if (/\.(cbz|cbr|zip|rar)(\?[^"]*)?$/i.test(finalUrl) || isBinaryContentType(ct)) {
+      const buf = Buffer.from(await res.arrayBuffer());
+      const ext = extFromUrlOrCt(finalUrl, ct);
+      return { fileUrl: finalUrl, data: buf, ext };
     }
 
     if (!res.ok) return null;
