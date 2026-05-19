@@ -1,10 +1,26 @@
 import type { NextApiRequest, NextApiResponse } from "next";
-import db from "../../../lib/db";
+import db, { getSiteConfig } from "../../../lib/db";
 import { getIronSession } from "iron-session";
 import { sessionOptions, User } from "../../../lib/session";
 import fs from "fs";
+import path from "path";
 import type { SeriesRow } from "./index";
 import { cancelJobForSeries } from "../../../lib/downloader";
+
+function getAllowedSeriesDirs(): string[] {
+  const cfg = getSiteConfig();
+  return [
+    cfg.MANGA_DIRECTORY || "/Manga",
+    cfg.COMICS_DIRECTORY || "/Comics",
+  ].map((d) => path.resolve(d));
+}
+
+function isSeriesFolderSafe(folder: string): boolean {
+  const resolved = path.resolve(folder);
+  return getAllowedSeriesDirs().some(
+    (dir) => resolved.startsWith(dir + path.sep) || resolved === dir
+  );
+}
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   const id = Number(req.query.id);
@@ -32,9 +48,22 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   if (req.method === "PUT") {
     const { title, status, description, tags, readingMode } = req.body ?? {};
-    if (title) db.prepare("UPDATE series SET title = ?, updated_at = datetime('now') WHERE id = ?").run(title, id);
+
+    if (title) {
+      if (typeof title !== "string" || title.length > 255) {
+        res.status(400).json({ message: "Title must be under 255 characters" });
+        return;
+      }
+      db.prepare("UPDATE series SET title = ?, updated_at = datetime('now') WHERE id = ?").run(title, id);
+    }
     if (status) db.prepare("UPDATE series SET status = ?, updated_at = datetime('now') WHERE id = ?").run(status, id);
-    if (typeof description === "string") db.prepare("UPDATE series SET description = ?, updated_at = datetime('now') WHERE id = ?").run(description, id);
+    if (typeof description === "string") {
+      if (description.length > 10_000) {
+        res.status(400).json({ message: "Description must be under 10,000 characters" });
+        return;
+      }
+      db.prepare("UPDATE series SET description = ?, updated_at = datetime('now') WHERE id = ?").run(description, id);
+    }
     if (typeof readingMode === "string" && ["ltr", "rtl", "webtoon"].includes(readingMode)) {
       db.prepare("UPDATE series SET reading_mode = ?, updated_at = datetime('now') WHERE id = ?").run(readingMode, id);
     }
@@ -43,11 +72,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         db.prepare("DELETE FROM series_tags WHERE series_id = ?").run(id);
         const ins = db.prepare("INSERT OR IGNORE INTO series_tags (series_id, tag) VALUES (?, ?)");
         for (const t of list) {
-          const v = (t || "").trim();
+          const v = (t || "").trim().slice(0, 100); // max 100 chars per tag
           if (v) ins.run(id, v);
         }
       });
-      txn(tags);
+      txn(tags.slice(0, 100)); // max 100 tags
     }
     res.json({ ok: true });
     return;
@@ -58,8 +87,13 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const deleteFiles = req.query.files === "true";
     const row = db.prepare("SELECT series_folder FROM series WHERE id = ?").get(id) as { series_folder: string } | undefined;
     db.prepare("DELETE FROM series WHERE id = ?").run(id);
-    if (deleteFiles && row?.series_folder && fs.existsSync(row.series_folder)) {
-      try { fs.rmSync(row.series_folder, { recursive: true, force: true }); } catch { /* ignore */ }
+
+    if (deleteFiles && row?.series_folder) {
+      const folder = row.series_folder;
+      // Guard against deleting outside designated media directories
+      if (isSeriesFolderSafe(folder) && fs.existsSync(folder)) {
+        try { fs.rmSync(folder, { recursive: true, force: true }); } catch { /* ignore */ }
+      }
     }
     res.json({ ok: true });
     return;

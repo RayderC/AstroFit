@@ -95,10 +95,6 @@ function importQueue(): Set<string> {
         (slug, title, type, source, source_url, description, cover_path, status, one_shot, series_folder)
       VALUES (?, ?, ?, '', ?, ?, ?, 'unknown', ?, ?)
     `);
-    const insertQueue = db.prepare(`
-      INSERT INTO download_queue (series_id, status, error_message, progress_pct)
-      VALUES (?, 'queued', '', 0)
-    `);
     let count = 0;
     for (const item of raw as OldQueueEntry[]) {
       if (!item?.series_name) continue;
@@ -116,10 +112,7 @@ function importQueue(): Set<string> {
       );
       const sid = (db.prepare("SELECT id FROM series WHERE slug = ?").get(slug) as { id: number } | undefined)?.id;
       if (sid != null) {
-        // Don't auto-requeue migrated entries (the source format changed); admin can
-        // hit "Resume" if they want to keep downloading. But we still want a series row.
-        // To enable auto-resume change the next line to: insertQueue.run(sid);
-        void insertQueue;
+        // Migrated entries are not auto-queued; admin can use "Resume" to re-download.
         if (folder) imported.add(folder);
         count++;
       }

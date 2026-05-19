@@ -40,6 +40,7 @@ export async function GET(
       headers: { "Content-Type": mime, "Cache-Control": "private, max-age=300" },
     });
   } catch (e) {
-    return NextResponse.json({ message: (e as Error).message }, { status: 404 });
+    void e;
+    return NextResponse.json({ message: "Page not found" }, { status: 404 });
   }
 }

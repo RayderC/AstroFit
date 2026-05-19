@@ -61,12 +61,15 @@ function nextJob(): QueueRow | null {
   return row ?? null;
 }
 
+const ALLOWED_STATUS_FIELDS = new Set(["status", "error_message", "progress_pct", "current_chapter"]);
+
 function setStatus(queueId: number, fields: Partial<{
   status: string; error_message: string; progress_pct: number; current_chapter: string;
 }>) {
   const sets: string[] = [];
   const vals: unknown[] = [];
   for (const [k, v] of Object.entries(fields)) {
+    if (!ALLOWED_STATUS_FIELDS.has(k)) continue;
     sets.push(`${k} = ?`);
     vals.push(v);
   }
@@ -138,6 +141,7 @@ async function downloadCoverIfMissing(s: SeriesRow, folder: string, cover?: stri
         "Referer": "https://ww1.mangafreak.me/",
         "Accept": "image/avif,image/webp,image/apng,image/*,*/*;q=0.8",
       },
+      signal: AbortSignal.timeout(15_000),
     });
     if (!r.ok) return;
     const buf = Buffer.from(await r.arrayBuffer());

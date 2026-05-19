@@ -34,5 +34,7 @@ export const sessionOptions: SessionOptions = {
   cookieName: "comicorbit_session",
   cookieOptions: {
     secure: secureCookie,
+    httpOnly: true,
+    sameSite: "lax",
   },
 };

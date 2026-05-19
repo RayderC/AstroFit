@@ -4,10 +4,20 @@ import bcrypt from "bcryptjs";
 import { getIronSession } from "iron-session";
 import { sessionOptions, User } from "../../lib/session";
 import { verifyWerkzeugHash } from "../../lib/legacyPassword";
+import { checkRateLimit } from "../../lib/rateLimit";
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== "POST") {
     res.status(405).end();
+    return;
+  }
+
+  // 10 attempts per minute per IP
+  const ip = (req.headers["x-forwarded-for"] as string | undefined)?.split(",")[0].trim()
+    || req.socket.remoteAddress
+    || "unknown";
+  if (!checkRateLimit(`login:${ip}`, 10, 60_000)) {
+    res.status(429).json({ message: "Too many login attempts. Try again in a minute." });
     return;
   }
 
@@ -33,7 +43,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   if (row.password && bcrypt.compareSync(password, row.password)) {
     authed = true;
   } else if (row.legacy_password && verifyWerkzeugHash(row.legacy_password, password)) {
-    // Upgrade legacy hash to bcrypt on successful login.
     const hash = bcrypt.hashSync(password, 10);
     db.prepare("UPDATE users SET password = ?, legacy_password = '' WHERE id = ?").run(hash, row.id);
     authed = true;

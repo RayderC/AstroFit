@@ -5,6 +5,15 @@ import yauzl, { ZipFile, Entry } from "yauzl";
 
 const IMG_EXT = /\.(jpg|jpeg|png|webp|gif)$/i;
 
+// Reject ZIP entries that could escape the extraction directory via path traversal.
+function isSafeEntryName(name: string): boolean {
+  if (path.isAbsolute(name)) return false;
+  const normalized = path.normalize(name);
+  if (normalized.startsWith("..")) return false;
+  if (name.includes("../") || name.includes("..\\")) return false;
+  return true;
+}
+
 export async function writeCbz(filePath: string, images: Buffer[]): Promise<void> {
   await fs.promises.mkdir(path.dirname(filePath), { recursive: true });
   const tmpPath = `${filePath}.part`;
@@ -49,7 +58,7 @@ export function listCbzImages(cbzPath: string): Promise<CbzEntry[]> {
       const entries: string[] = [];
       zip.on("error", reject);
       zip.on("entry", (entry: Entry) => {
-        if (!entry.fileName.endsWith("/") && IMG_EXT.test(entry.fileName)) {
+        if (!entry.fileName.endsWith("/") && IMG_EXT.test(entry.fileName) && isSafeEntryName(entry.fileName)) {
           entries.push(entry.fileName);
         }
         zip.readEntry();

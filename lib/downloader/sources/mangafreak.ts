@@ -1,5 +1,6 @@
 import * as cheerio from "cheerio";
 import pLimit from "p-limit";
+import { isSafeExternalUrl } from "../../safeUrl";
 import type {
   ChapterPayload,
   ChapterRef,
@@ -53,6 +54,7 @@ function getImageDimensions(buf: Buffer): { w: number; h: number } | null {
 
 function isPageImage(src: string): boolean {
   if (!src) return false;
+  if (!isSafeExternalUrl(src)) return false; // block private IPs from scraped content
   if (!src.match(/\.(jpg|jpeg|png|webp)(\?.*)?$/i)) return false;
   if (src.match(/\/(logo|icon|banner|avatar|ads?|sprite|thumb_default)/i)) return false;
   return true;
@@ -63,7 +65,7 @@ export const mangafreakSource: Source = {
   type: "manga",
 
   async search(query: string): Promise<SearchResult[]> {
-    const res = await fetch(`${BASE}/Find/${encodeURIComponent(query)}`, { headers: UA });
+    const res = await fetch(`${BASE}/Find/${encodeURIComponent(query)}`, { headers: UA, signal: AbortSignal.timeout(30_000) });
     if (!res.ok) return [];
     const html = await res.text();
     const $ = cheerio.load(html);
@@ -97,7 +99,7 @@ export const mangafreakSource: Source = {
   },
 
   async getMetadata(url: string): Promise<SeriesMetadata> {
-    const res = await fetch(url, { headers: UA });
+    const res = await fetch(url, { headers: UA, signal: AbortSignal.timeout(30_000) });
     if (!res.ok) throw new Error(`MangaFreak metadata failed: ${res.status}`);
     const html = await res.text();
     const $ = cheerio.load(html);
@@ -130,7 +132,7 @@ export const mangafreakSource: Source = {
   },
 
   async listChapters(url: string): Promise<ChapterRef[]> {
-    const res = await fetch(url, { headers: UA });
+    const res = await fetch(url, { headers: UA, signal: AbortSignal.timeout(30_000) });
     if (!res.ok) throw new Error(`MangaFreak list failed: ${res.status}`);
     const html = await res.text();
     const $ = cheerio.load(html);
@@ -290,7 +292,10 @@ async function fetchWithRetry(url: string, signal?: AbortSignal, attempts = 3): 
   let lastErr: unknown;
   for (let i = 0; i < attempts; i++) {
     try {
-      const r = await fetch(url, { headers: UA, signal });
+      // Combine job abort signal with a per-attempt 30s timeout.
+      const perAttempt = AbortSignal.timeout(30_000);
+      const combined = signal ? AbortSignal.any([signal, perAttempt]) : perAttempt;
+      const r = await fetch(url, { headers: UA, signal: combined });
       if (r.ok) return r;
       lastErr = new Error(`HTTP ${r.status}`);
     } catch (e) {
