@@ -21,6 +21,9 @@ export async function generateMetadata(): Promise<Metadata> {
     title: name,
     description,
     manifest: "/manifest.json",
+    icons: {
+      apple: "/icons/apple-touch-icon-180x180.png",
+    },
     appleWebApp: {
       capable: true,
       statusBarStyle: "black-translucent",
@@ -33,8 +36,19 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en">
       <head>
-        {/* Android Chrome Add to Home Screen */}
         <meta name="mobile-web-app-capable" content="yes" />
+        <link rel="apple-touch-icon" href="/icons/apple-touch-icon-180x180.png" />
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+              if ('serviceWorker' in navigator) {
+                window.addEventListener('load', () => {
+                  navigator.serviceWorker.register('/sw.js').catch(() => {});
+                });
+              }
+            `,
+          }}
+        />
       </head>
       <body>
         <CircuitBackground />

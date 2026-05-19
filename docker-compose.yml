@@ -1,6 +1,6 @@
 services:
   comicorbit:
-    image: comicorbit:latest
+    image: rayderc/comicorbit:latest
     container_name: comicorbit
     restart: always
     ports:

@@ -17,6 +17,7 @@
 - **Favorites & custom collections** — star series and group them however you want
 - **Tag / type / status filters** in the full library view
 - **Multi-user** — admin creates additional accounts from the dashboard
+- **PWA / Add to Home Screen** — installs as a full-screen app on iOS and Android with a proper icon and offline shell
 - **Single-container Docker** — SQLite database, auto-generated session secret, bind-mount volumes for your files
 
 ---
