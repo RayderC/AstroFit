@@ -22,6 +22,7 @@ export async function generateMetadata(): Promise<Metadata> {
     description,
     manifest: "/manifest.json",
     icons: {
+      icon: "/favicon.png",
       apple: "/icons/apple-touch-icon-180x180.png",
     },
     appleWebApp: {
