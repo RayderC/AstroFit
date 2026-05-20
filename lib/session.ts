@@ -35,6 +35,14 @@ const secureCookie =
     ? process.env.SESSION_COOKIE_SECURE === "true"
     : false;
 
+if (!isBuild && !isDev && !secureCookie) {
+  console.warn(
+    "[session] WARNING: SESSION_COOKIE_SECURE is not set to 'true'. " +
+    "Session cookies will be sent over HTTP. " +
+    "Set SESSION_COOKIE_SECURE=true in your environment if serving over HTTPS."
+  );
+}
+
 export const sessionOptions: SessionOptions = {
   password: sessionPassword,
   cookieName: "comicorbit_session",

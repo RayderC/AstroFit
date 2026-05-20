@@ -3,8 +3,13 @@ import db, { adminCount } from "../../../lib/db";
 import bcrypt from "bcryptjs";
 import { getIronSession } from "iron-session";
 import { sessionOptions, User } from "../../../lib/session";
+import { checkCsrf } from "../../../lib/csrf";
+
+export const config = { api: { bodyParser: { sizeLimit: "16kb" } } };
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+  if (!checkCsrf(req)) { res.status(403).json({ message: "Forbidden" }); return; }
+
   const session = await getIronSession<{ user?: User }>(req, res, sessionOptions);
   if (!session.user?.isAdmin) {
     res.status(403).json({ message: "Forbidden" });
@@ -49,8 +54,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     }
 
     if (password && typeof password === "string") {
-      if (password.length < 5 || password.length > 200) {
-        res.status(400).json({ message: "Password must be 5–200 characters" });
+      if (password.length < 8 || password.length > 200) {
+        res.status(400).json({ message: "Password must be 8–200 characters" });
         return;
       }
       hashedPassword = bcrypt.hashSync(password, 10);
@@ -79,18 +84,19 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       if (hashedPassword !== undefined) { sets.push("password = ?"); vals.push(hashedPassword); }
       if (typeof isAdmin === "boolean") { sets.push("is_admin = ?"); vals.push(isAdmin ? 1 : 0); }
 
-      db.prepare(`UPDATE users SET ${sets.join(", ")} WHERE id = ?`).run(...vals, id);
+      try {
+        db.prepare(`UPDATE users SET ${sets.join(", ")} WHERE id = ?`).run(...vals, id);
+      } catch {
+        return "username_taken";
+      }
       return "ok";
     })();
 
     if (result === "not_found") { res.status(404).json({ message: "User not found" }); return; }
     if (result === "last_admin") { res.status(400).json({ message: "Cannot remove admin from the last remaining admin" }); return; }
+    if (result === "username_taken") { res.status(400).json({ message: "Username already taken" }); return; }
 
-    try {
-      res.json({ ok: true });
-    } catch {
-      res.status(400).json({ message: "Username already taken" });
-    }
+    res.json({ ok: true });
     return;
   }
 

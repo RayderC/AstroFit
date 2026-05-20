@@ -1,4 +1,5 @@
 const store = new Map<string, { count: number; resetAt: number }>();
+const MAX_ENTRIES = 5000;
 
 // Prune expired entries every 10 minutes so the map doesn't grow forever.
 setInterval(() => {
@@ -11,6 +12,13 @@ setInterval(() => {
 /** Returns true if the request is allowed, false if the limit has been exceeded. */
 export function checkRateLimit(key: string, limit: number, windowMs: number): boolean {
   const now = Date.now();
+
+  // Prevent unbounded growth under floods of unique IPs.
+  if (store.size >= MAX_ENTRIES) {
+    const firstKey = store.keys().next().value;
+    if (firstKey !== undefined) store.delete(firstKey);
+  }
+
   const entry = store.get(key);
   if (!entry || now > entry.resetAt) {
     store.set(key, { count: 1, resetAt: now + windowMs });

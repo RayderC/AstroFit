@@ -206,9 +206,11 @@ export const getcomicsSource: Source = {
     }
     const ranked = Array.from(seen.values()).sort((a, b) => b.score - a.score);
 
-    console.log(`[getcomics] ${ranked.length} candidate links for ${ref.externalId}`);
-    for (const c of ranked.slice(0, 5)) {
-      console.log(`  score=${c.score} text="${c.text}" url=${c.url}`);
+    if (process.env.DEBUG_DOWNLOADS) {
+      console.log(`[getcomics] ${ranked.length} candidate links for ${ref.externalId}`);
+      for (const c of ranked.slice(0, 5)) {
+        console.log(`  score=${c.score} text="${c.text}" url=${c.url}`);
+      }
     }
 
     if (ranked.length === 0) {

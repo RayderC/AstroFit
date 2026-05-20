@@ -28,7 +28,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
 
   const row = db
-    .prepare("SELECT id, username, password, legacy_password, is_admin FROM users WHERE username = ?")
+    .prepare("SELECT id, username, password, legacy_password, is_admin FROM users WHERE LOWER(username) = ?")
     .get(String(username).toLowerCase()) as
     | { id: number; username: string; password: string; legacy_password: string; is_admin: number }
     | undefined;

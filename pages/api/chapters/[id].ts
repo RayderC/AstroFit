@@ -1,11 +1,30 @@
 import type { NextApiRequest, NextApiResponse } from "next";
-import db from "../../../lib/db";
+import db, { getSiteConfig } from "../../../lib/db";
 import fs from "fs";
+import path from "path";
 import { getIronSession } from "iron-session";
 import { sessionOptions, User } from "../../../lib/session";
+import { checkCsrf } from "../../../lib/csrf";
+
+function getAllowedChapterDirs(): string[] {
+  const cfg = getSiteConfig();
+  return [
+    cfg.MANGA_DIRECTORY || "/Manga",
+    cfg.COMICS_DIRECTORY || "/Comics",
+  ].map((d) => path.resolve(d));
+}
+
+function isChapterPathSafe(filePath: string): boolean {
+  const resolved = path.resolve(filePath);
+  return getAllowedChapterDirs().some(
+    (dir) => resolved.startsWith(dir + path.sep) || resolved === dir
+  );
+}
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== "DELETE") { res.status(405).end(); return; }
+
+  if (!checkCsrf(req)) { res.status(403).json({ message: "Forbidden" }); return; }
 
   const session = await getIronSession<{ user?: User }>(req, res, sessionOptions);
   if (!session.user?.isAdmin) { res.status(403).json({ message: "Forbidden" }); return; }
@@ -19,8 +38,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   if (!chapter) { res.status(404).json({ message: "Chapter not found" }); return; }
 
   // Delete the file before the DB row so a concurrent request doesn't see a
-  // "chapter exists but file missing" state.
-  if (chapter.file_path && fs.existsSync(chapter.file_path)) {
+  // "chapter exists but file missing" state. Validate path is within allowed dirs first.
+  if (chapter.file_path && isChapterPathSafe(chapter.file_path) && fs.existsSync(chapter.file_path)) {
     try { fs.unlinkSync(chapter.file_path); } catch { /* ignore */ }
   }
 

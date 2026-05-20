@@ -4,7 +4,11 @@ import { getIronSession } from "iron-session";
 import { sessionOptions, User } from "../../../lib/session";
 import { slugify, sanitizeFsName } from "../../../lib/url";
 import { getSource } from "../../../lib/downloader/sources";
+import { isSafeExternalUrl } from "../../../lib/safeUrl";
+import { checkCsrf } from "../../../lib/csrf";
 import path from "path";
+
+export const config = { api: { bodyParser: { sizeLimit: "64kb" } } };
 
 export interface SeriesRow {
   id: number;
@@ -64,6 +68,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
 
   if (req.method === "POST") {
+    if (!checkCsrf(req)) { res.status(403).json({ message: "Forbidden" }); return; }
+
     const session = await getIronSession<{ user?: User }>(req, res, sessionOptions);
     if (!session.user?.isAdmin) {
       res.status(403).json({ message: "Forbidden" });
@@ -88,6 +94,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       if (parsed.protocol !== "http:" && parsed.protocol !== "https:") throw new Error("bad protocol");
     } catch {
       res.status(400).json({ message: "source_url must be a valid http/https URL" });
+      return;
+    }
+    if (!isSafeExternalUrl(source_url)) {
+      res.status(400).json({ message: "source_url points to a disallowed address" });
       return;
     }
     try { getSource(source); } catch {

@@ -3,9 +3,11 @@ import db from "../../lib/db";
 import bcrypt from "bcryptjs";
 import { getIronSession } from "iron-session";
 import { sessionOptions, User } from "../../lib/session";
+import { checkCsrf } from "../../lib/csrf";
+
+export const config = { api: { bodyParser: { sizeLimit: "16kb" } } };
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-const ALLOWED_PROFILE_FIELDS = new Set(["email", "password"]);
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   const session = await getIronSession<{ user?: User }>(req, res, sessionOptions);
@@ -25,9 +27,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
 
   if (req.method === "PATCH") {
-    const { password, email } = req.body ?? {};
-    const sets: string[] = [];
-    const vals: unknown[] = [];
+    if (!checkCsrf(req)) { res.status(403).json({ message: "Forbidden" }); return; }
+
+    const { email, password, currentPassword } = req.body ?? {};
 
     if (email !== undefined) {
       if (typeof email !== "string") {
@@ -43,8 +45,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         res.status(400).json({ message: "Email must be under 254 characters" });
         return;
       }
-      sets.push("email = ?");
-      vals.push(trimmed);
+      db.prepare("UPDATE users SET `email` = ? WHERE id = ?").run(trimmed, userId);
     }
 
     if (password !== undefined) {
@@ -56,20 +57,25 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         res.status(400).json({ message: "Password must be under 200 characters" });
         return;
       }
-      sets.push("password = ?");
-      vals.push(bcrypt.hashSync(password, 10));
+      // Require the current password to authorise the change.
+      if (!currentPassword || typeof currentPassword !== "string") {
+        res.status(400).json({ message: "Current password is required to set a new one" });
+        return;
+      }
+      const row = db.prepare("SELECT password FROM users WHERE id = ?").get(userId) as
+        | { password: string } | undefined;
+      if (!row || !bcrypt.compareSync(currentPassword, row.password)) {
+        res.status(400).json({ message: "Current password is incorrect" });
+        return;
+      }
+      db.prepare("UPDATE users SET `password` = ? WHERE id = ?").run(bcrypt.hashSync(password, 10), userId);
     }
 
-    if (sets.length === 0) { res.status(400).json({ message: "Nothing to update" }); return; }
-
-    // Verify only whitelisted columns are being set (defense-in-depth)
-    const colNames = sets.map((s) => s.split(" ")[0]);
-    if (colNames.some((c) => !ALLOWED_PROFILE_FIELDS.has(c))) {
-      res.status(400).json({ message: "Invalid field" });
+    if (email === undefined && password === undefined) {
+      res.status(400).json({ message: "Nothing to update" });
       return;
     }
 
-    db.prepare(`UPDATE users SET ${sets.join(", ")} WHERE id = ?`).run(...vals, userId);
     res.json({ ok: true });
     return;
   }

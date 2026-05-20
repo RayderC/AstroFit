@@ -3,6 +3,9 @@ import db, { userCount } from "../../lib/db";
 import bcrypt from "bcryptjs";
 import { getIronSession } from "iron-session";
 import { sessionOptions, User } from "../../lib/session";
+import { checkRateLimit } from "../../lib/rateLimit";
+
+export const config = { api: { bodyParser: { sizeLimit: "16kb" } } };
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method === "GET") {
@@ -15,8 +18,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return;
   }
 
-  if (userCount() > 0) {
-    res.status(403).json({ message: "Setup has already been completed" });
+  // 5 attempts per hour per IP — setup is one-time, no need for more.
+  const ip = (req.headers["x-forwarded-for"] as string | undefined)?.split(",")[0].trim()
+    || req.socket.remoteAddress || "unknown";
+  if (!checkRateLimit(`setup:${ip}`, 5, 60 * 60_000)) {
+    res.status(429).json({ message: "Too many requests. Try again later." });
     return;
   }
 
@@ -29,14 +35,35 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     res.status(400).json({ message: "Password must be at least 8 characters" });
     return;
   }
+  if (password.length > 200) {
+    res.status(400).json({ message: "Password must be under 200 characters" });
+    return;
+  }
 
+  const cleanUsername = String(username).trim().toLowerCase();
+  if (cleanUsername.length < 2 || cleanUsername.length > 50) {
+    res.status(400).json({ message: "Username must be 2–50 characters" });
+    return;
+  }
+
+  // Hash outside the transaction (bcrypt is slow).
   const hash = bcrypt.hashSync(password, 10);
-  const info = db
-    .prepare("INSERT INTO users (username, password, is_admin) VALUES (?, ?, 1)")
-    .run(String(username).toLowerCase(), hash);
+
+  // Atomic check-then-insert prevents two concurrent setup requests both succeeding.
+  const result = db.transaction(() => {
+    if (userCount() > 0) return null;
+    return db
+      .prepare("INSERT INTO users (username, password, is_admin) VALUES (?, ?, 1)")
+      .run(cleanUsername, hash);
+  })();
+
+  if (!result) {
+    res.status(403).json({ message: "Setup has already been completed" });
+    return;
+  }
 
   const session = await getIronSession<{ user?: User }>(req, res, sessionOptions);
-  session.user = { id: info.lastInsertRowid as number, username: String(username).toLowerCase(), isAdmin: true };
+  session.user = { id: result.lastInsertRowid as number, username: cleanUsername, isAdmin: true };
   await session.save();
 
   res.json({ ok: true });

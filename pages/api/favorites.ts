@@ -2,6 +2,9 @@ import type { NextApiRequest, NextApiResponse } from "next";
 import db from "../../lib/db";
 import { getIronSession } from "iron-session";
 import { sessionOptions, User } from "../../lib/session";
+import { checkCsrf } from "../../lib/csrf";
+
+export const config = { api: { bodyParser: { sizeLimit: "16kb" } } };
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   const session = await getIronSession<{ user?: User }>(req, res, sessionOptions);
@@ -23,6 +26,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
 
   if (req.method === "POST") {
+    if (!checkCsrf(req)) { res.status(403).json({ message: "Forbidden" }); return; }
     const id = Number((req.body ?? {}).series_id);
     if (!Number.isFinite(id)) { res.status(400).json({ message: "series_id required" }); return; }
     db.prepare("INSERT OR IGNORE INTO favorites (user_id, series_id) VALUES (?, ?)").run(userId, id);
@@ -31,6 +35,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
 
   if (req.method === "DELETE") {
+    if (!checkCsrf(req)) { res.status(403).json({ message: "Forbidden" }); return; }
     const id = Number(req.query.series_id ?? (req.body ?? {}).series_id);
     if (!Number.isFinite(id)) { res.status(400).json({ message: "series_id required" }); return; }
     db.prepare("DELETE FROM favorites WHERE user_id = ? AND series_id = ?").run(userId, id);

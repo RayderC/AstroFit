@@ -16,7 +16,7 @@ const ALLOWED_MIME: Record<string, string> = {
 };
 const MAX_DECODED_BYTES = 8 * 1024 * 1024; // 8 MB after base64 decode
 
-const customCoversDir = () => path.join(process.env.CONFIG_DIR || "/config", "covers");
+const customCoversDir = () => path.join(process.env.CONFIG_DIRECTORY || "/config", "covers");
 
 function deleteCustomCoverFiles(id: number) {
   const dir = customCoversDir();

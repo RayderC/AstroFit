@@ -3,10 +3,24 @@ import db from "../../lib/db";
 import bcrypt from "bcryptjs";
 import { getIronSession } from "iron-session";
 import { sessionOptions, User } from "../../lib/session";
+import { checkRateLimit } from "../../lib/rateLimit";
+import { checkCsrf } from "../../lib/csrf";
+
+export const config = { api: { bodyParser: { sizeLimit: "16kb" } } };
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== "POST") {
     res.status(405).end();
+    return;
+  }
+
+  if (!checkCsrf(req)) { res.status(403).json({ message: "Forbidden" }); return; }
+
+  // 20 registrations per 10 minutes per IP (admin-only but still limit spam).
+  const ip = (req.headers["x-forwarded-for"] as string | undefined)?.split(",")[0].trim()
+    || req.socket.remoteAddress || "unknown";
+  if (!checkRateLimit(`register:${ip}`, 20, 10 * 60_000)) {
+    res.status(429).json({ message: "Too many requests. Try again later." });
     return;
   }
 
@@ -42,6 +56,13 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
   if (password.length > 200) {
     res.status(400).json({ message: "Password must be under 200 characters" });
+    return;
+  }
+
+  // Case-insensitive uniqueness check (SQLite UNIQUE is case-sensitive by default).
+  const existing = db.prepare("SELECT id FROM users WHERE LOWER(username) = ?").get(cleanUsername);
+  if (existing) {
+    res.status(400).json({ message: "Username already exists" });
     return;
   }
 

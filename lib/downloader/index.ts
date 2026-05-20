@@ -70,7 +70,7 @@ function setStatus(queueId: number, fields: Partial<{
   const vals: unknown[] = [];
   for (const [k, v] of Object.entries(fields)) {
     if (!ALLOWED_STATUS_FIELDS.has(k)) continue;
-    sets.push(`${k} = ?`);
+    sets.push(`\`${k}\` = ?`);  // backtick-quote column names as defense-in-depth
     vals.push(v);
   }
   sets.push("updated_at = datetime('now')");
@@ -125,6 +125,8 @@ function chapterFilePath(s: SeriesRow, folder: string, num: number): string {
   return path.join(folder, `${safeTitle} - ${num}.cbz`);
 }
 
+const MAX_COVER_BYTES = 10 * 1024 * 1024; // 10 MB
+
 async function downloadCoverIfMissing(s: SeriesRow, folder: string, cover?: string): Promise<void> {
   if (!cover) return;
   const target = path.join(folder, "cover_image.jpg");
@@ -148,7 +150,17 @@ async function downloadCoverIfMissing(s: SeriesRow, folder: string, cover?: stri
       console.warn(`[downloader] cover fetch returned non-image content-type "${ct}" for ${cover}`);
       return;
     }
+    // Reject oversized covers before buffering to prevent memory exhaustion.
+    const contentLength = Number(r.headers.get("content-length") || "0");
+    if (contentLength > MAX_COVER_BYTES) {
+      console.warn(`[downloader] cover too large (${contentLength} bytes) for ${cover}`);
+      return;
+    }
     const buf = Buffer.from(await r.arrayBuffer());
+    if (buf.length > MAX_COVER_BYTES) {
+      console.warn(`[downloader] cover too large after download (${buf.length} bytes) for ${cover}`);
+      return;
+    }
     fs.writeFileSync(target, buf);
     db.prepare("UPDATE series SET cover_path = ? WHERE id = ?").run(target, s.id);
   } catch (e) {
@@ -280,19 +292,33 @@ async function runJob(job: QueueRow): Promise<void> {
 
       const target = chapterFilePath(series, folder, ch.number);
 
+      let finalTarget = target;
       if (payload.kind === "images") {
         await writeCbz(target, payload.images);
       } else {
         // archive: write to disk; if it's a .zip / .cbz / .cbr keep as-is, renamed.
-        const finalTarget = target.replace(/\.cbz$/, `.${payload.ext === "cbr" ? "cbr" : "cbz"}`);
+        finalTarget = target.replace(/\.cbz$/, `.${payload.ext === "cbr" ? "cbr" : "cbz"}`);
         fs.writeFileSync(finalTarget, payload.data);
       }
 
-      const pages = await countCbzPages(target).catch(() => 0);
+      // Basic integrity check: reject zero-byte or suspiciously tiny files.
+      try {
+        const stat = fs.statSync(finalTarget);
+        if (stat.size < 100) {
+          console.warn(`[downloader] chapter ${ch.number} file too small (${stat.size} bytes), skipping`);
+          try { fs.unlinkSync(finalTarget); } catch { /* ignore */ }
+          continue;
+        }
+      } catch {
+        console.warn(`[downloader] chapter ${ch.number} file stat failed, skipping`);
+        continue;
+      }
+
+      const pages = await countCbzPages(finalTarget).catch(() => 0);
       db.prepare(`
         INSERT OR REPLACE INTO chapters (series_id, number, title, file_path, page_count, downloaded_at)
         VALUES (?, ?, ?, ?, ?, datetime('now'))
-      `).run(s.id, ch.number, ch.title || "", target, pages);
+      `).run(s.id, ch.number, ch.title || "", finalTarget, pages);
 
       completed++;
     } catch (e) {

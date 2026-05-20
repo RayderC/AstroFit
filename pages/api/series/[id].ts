@@ -2,10 +2,15 @@ import type { NextApiRequest, NextApiResponse } from "next";
 import db, { getSiteConfig } from "../../../lib/db";
 import { getIronSession } from "iron-session";
 import { sessionOptions, User } from "../../../lib/session";
+import { checkCsrf } from "../../../lib/csrf";
 import fs from "fs";
 import path from "path";
 import type { SeriesRow } from "./index";
 import { cancelJobForSeries } from "../../../lib/downloader";
+
+export const config = { api: { bodyParser: { sizeLimit: "64kb" } } };
+
+const VALID_STATUS = new Set(["unknown", "ongoing", "completed", "hiatus"]);
 
 function getAllowedSeriesDirs(): string[] {
   const cfg = getSiteConfig();
@@ -40,6 +45,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return;
   }
 
+  if (!checkCsrf(req)) { res.status(403).json({ message: "Forbidden" }); return; }
+
   const session = await getIronSession<{ user?: User }>(req, res, sessionOptions);
   if (!session.user?.isAdmin) {
     res.status(403).json({ message: "Forbidden" });
@@ -56,7 +63,13 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       }
       db.prepare("UPDATE series SET title = ?, updated_at = datetime('now') WHERE id = ?").run(title, id);
     }
-    if (status) db.prepare("UPDATE series SET status = ?, updated_at = datetime('now') WHERE id = ?").run(status, id);
+    if (status) {
+      if (!VALID_STATUS.has(status)) {
+        res.status(400).json({ message: "status must be one of: unknown, ongoing, completed, hiatus" });
+        return;
+      }
+      db.prepare("UPDATE series SET status = ?, updated_at = datetime('now') WHERE id = ?").run(status, id);
+    }
     if (typeof description === "string") {
       if (description.length > 10_000) {
         res.status(400).json({ message: "Description must be under 10,000 characters" });

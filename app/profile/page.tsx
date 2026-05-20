@@ -9,6 +9,7 @@ export default function ProfilePage() {
   const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
   const [newEmail, setNewEmail] = useState("");
+  const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [loading, setLoading] = useState(true);
@@ -38,8 +39,12 @@ export default function ProfilePage() {
       setMsg({ text: "Passwords do not match", ok: false });
       return;
     }
-    if (newPassword && newPassword.length < 5) {
-      setMsg({ text: "Password must be at least 5 characters", ok: false });
+    if (newPassword && newPassword.length < 8) {
+      setMsg({ text: "Password must be at least 8 characters", ok: false });
+      return;
+    }
+    if (newPassword && !currentPassword) {
+      setMsg({ text: "Enter your current password to set a new one", ok: false });
       return;
     }
     setSaving(true);
@@ -47,7 +52,7 @@ export default function ProfilePage() {
     try {
       const body: Record<string, string> = {};
       if (newEmail !== email) body.email = newEmail;
-      if (newPassword) body.password = newPassword;
+      if (newPassword) { body.password = newPassword; body.currentPassword = currentPassword; }
       if (Object.keys(body).length === 0) {
         setMsg({ text: "No changes to save", ok: false });
         setSaving(false);
@@ -62,6 +67,7 @@ export default function ProfilePage() {
       if (r.ok) {
         setMsg({ text: "Profile updated successfully", ok: true });
         setEmail(newEmail);
+        setCurrentPassword("");
         setNewPassword("");
         setConfirmPassword("");
       } else {
@@ -123,6 +129,18 @@ export default function ProfilePage() {
               </p>
               <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
                 <div>
+                  <label className="form-label" htmlFor="currentpw">Current password</label>
+                  <input
+                    id="currentpw"
+                    type="password"
+                    className="form-input"
+                    value={currentPassword}
+                    onChange={(e) => setCurrentPassword(e.target.value)}
+                    placeholder="Required to change password"
+                    style={{ marginTop: "6px" }}
+                  />
+                </div>
+                <div>
                   <label className="form-label" htmlFor="newpw">New password</label>
                   <input
                     id="newpw"
@@ -130,7 +148,7 @@ export default function ProfilePage() {
                     className="form-input"
                     value={newPassword}
                     onChange={(e) => setNewPassword(e.target.value)}
-                    placeholder="New password (min 5 chars)"
+                    placeholder="New password (min 8 chars)"
                     style={{ marginTop: "6px" }}
                   />
                 </div>

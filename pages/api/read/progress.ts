@@ -3,6 +3,8 @@ import db from "../../../lib/db";
 import { getIronSession } from "iron-session";
 import { sessionOptions, User } from "../../../lib/session";
 
+export const config = { api: { bodyParser: { sizeLimit: "16kb" } } };
+
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   const session = await getIronSession<{ user?: User }>(req, res, sessionOptions);
   if (!session.user) {
@@ -14,13 +16,24 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   if (req.method === "POST") {
     const { chapter_id, page, completed } = req.body ?? {};
     const cId = Number(chapter_id);
-    const p = Number(page);
-    if (!Number.isFinite(cId) || !Number.isFinite(p)) {
+    if (!Number.isFinite(cId)) {
       res.status(400).json({ message: "Invalid fields" });
       return;
     }
-    const ch = db.prepare("SELECT series_id FROM chapters WHERE id = ?").get(cId) as { series_id: number } | undefined;
+    const ch = db.prepare("SELECT series_id, page_count FROM chapters WHERE id = ?").get(cId) as
+      | { series_id: number; page_count: number }
+      | undefined;
     if (!ch) { res.status(404).json({ message: "Chapter not found" }); return; }
+
+    // Clamp page to valid range — reject obviously bogus values.
+    const rawPage = Number(page);
+    if (!Number.isFinite(rawPage)) {
+      res.status(400).json({ message: "Invalid fields" });
+      return;
+    }
+    const maxPage = ch.page_count > 0 ? ch.page_count : 9999;
+    const p = Math.max(0, Math.min(Math.round(rawPage), maxPage));
+
     db.prepare(`
       INSERT INTO read_progress (user_id, series_id, chapter_id, page, completed, updated_at)
       VALUES (?, ?, ?, ?, ?, datetime('now'))
