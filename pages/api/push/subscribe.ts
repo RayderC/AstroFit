@@ -27,7 +27,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       res.status(400).json({ message: "Invalid subscription object" });
       return;
     }
-    if (typeof endpoint !== "string" || endpoint.length > 500) {
+    if (typeof endpoint !== "string" || endpoint.length > 2000) {
       res.status(400).json({ message: "Invalid endpoint" });
       return;
     }

@@ -27,6 +27,8 @@ export default function ProfilePage() {
   const [notifSubscribed, setNotifSubscribed] = useState(false);
   const [notifSupported, setNotifSupported] = useState(false);
   const [notifBusy, setNotifBusy] = useState(false);
+  const [notifError, setNotifError] = useState("");
+  const [notifTestResult, setNotifTestResult] = useState<{ text: string; ok: boolean } | null>(null);
 
   useEffect(() => {
     fetch("/api/profile")
@@ -87,22 +89,52 @@ export default function ProfilePage() {
   async function toggleNotifications() {
     if (!notifSupported || !vapidKey || notifBusy) return;
     setNotifBusy(true);
+    setNotifError("");
+    setNotifTestResult(null);
     try {
       const reg = await navigator.serviceWorker.ready;
       if (notifSubscribed) {
         const sub = await reg.pushManager.getSubscription();
-        if (sub) { await sub.unsubscribe(); await fetch("/api/push/subscribe", { method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ endpoint: sub.endpoint }) }); }
+        if (sub) {
+          await sub.unsubscribe();
+          await fetch("/api/push/subscribe", { method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ endpoint: sub.endpoint }) });
+        }
         setNotifSubscribed(false);
       } else {
         const perm = await Notification.requestPermission();
+        if (perm === "denied") { setNotifError("Notifications are blocked in your browser. Allow them in browser settings and try again."); setNotifBusy(false); return; }
         if (perm !== "granted") { setNotifBusy(false); return; }
         const sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: urlBase64ToUint8Array(vapidKey) });
         const json = sub.toJSON();
-        await fetch("/api/push/subscribe", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ endpoint: json.endpoint, keys: json.keys }) });
+        const r = await fetch("/api/push/subscribe", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ endpoint: json.endpoint, keys: json.keys }) });
+        if (!r.ok) {
+          const d = await r.json().catch(() => ({}));
+          setNotifError(d.message || "Failed to save subscription — try again.");
+          setNotifBusy(false);
+          return;
+        }
         setNotifSubscribed(true);
       }
-    } catch (e) { console.error("Push toggle failed:", e); }
+    } catch (e) {
+      const msg = (e as Error).message || "Unknown error";
+      if (msg.includes("pushManager") || msg.includes("secure") || msg.includes("https")) {
+        setNotifError("Push notifications require HTTPS. Access this site over https:// to use notifications.");
+      } else {
+        setNotifError(`Failed: ${msg}`);
+      }
+    }
     setNotifBusy(false);
+  }
+
+  async function sendTestNotification() {
+    setNotifTestResult(null);
+    try {
+      const r = await fetch("/api/push/test", { method: "POST" });
+      const d = await r.json().catch(() => ({}));
+      setNotifTestResult({ text: r.ok ? "Test notification sent — check your device." : (d.message || "Failed"), ok: r.ok });
+    } catch {
+      setNotifTestResult({ text: "Network error", ok: false });
+    }
   }
 
   if (loading) return (
@@ -170,10 +202,25 @@ export default function ProfilePage() {
             <p style={{ fontSize: "12px", color: "var(--text-subtle)", marginBottom: "16px", lineHeight: 1.5 }}>
               Get a push notification on this device whenever a new chapter finishes downloading.
             </p>
-            <button className={`btn ${notifSubscribed ? "btn-ghost" : "btn-primary"}`} onClick={toggleNotifications} disabled={notifBusy}>
-              {notifBusy ? "Working…" : notifSubscribed ? "Disable notifications" : "Enable notifications"}
-            </button>
+            <div style={{ display: "flex", gap: "8px", flexWrap: "wrap", alignItems: "center" }}>
+              <button className={`btn ${notifSubscribed ? "btn-ghost" : "btn-primary"}`} onClick={toggleNotifications} disabled={notifBusy}>
+                {notifBusy ? "Working…" : notifSubscribed ? "Disable notifications" : "Enable notifications"}
+              </button>
+              {notifSubscribed && (
+                <button className="btn btn-ghost btn-sm" onClick={sendTestNotification}>
+                  Send test
+                </button>
+              )}
+            </div>
             {notifSubscribed && <p style={{ fontSize: "11px", color: "var(--accent-cyan)", marginTop: "10px" }}>✓ Notifications enabled on this device</p>}
+            {notifError && <p style={{ fontSize: "12px", color: "var(--danger)", marginTop: "10px" }}>{notifError}</p>}
+            {notifTestResult && <p style={{ fontSize: "12px", color: notifTestResult.ok ? "var(--success)" : "var(--danger)", marginTop: "10px" }}>{notifTestResult.text}</p>}
+          </div>
+        )}
+        {notifSupported && !vapidKey && (
+          <div className="card" style={{ padding: "28px" }}>
+            <h2 style={{ fontSize: "15px", fontWeight: 700, marginBottom: "6px" }}>Chapter Notifications</h2>
+            <p style={{ fontSize: "12px", color: "var(--danger)" }}>Push keys not available — check server logs.</p>
           </div>
         )}
       </div>

@@ -22,7 +22,7 @@ export function ensureVapidKeys(): { publicKey: string } {
   }
 
   webpush.setVapidDetails(
-    "mailto:admin@comicorbit.local",
+    "mailto:admin@localhost",
     pub,
     priv,
   );
