@@ -18,12 +18,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   const session = await getIronSession<{ user?: User }>(req, res, sessionOptions);
 
   const rows = db.prepare(`
-    SELECT id, series_id, number, title, file_path, page_count, downloaded_at
+    SELECT id, series_id, number, title, page_count, downloaded_at
     FROM chapters WHERE series_id = ?
     ORDER BY number ASC
   `).all(id) as {
     id: number; series_id: number; number: number; title: string;
-    file_path: string; page_count: number; downloaded_at: string;
+    page_count: number; downloaded_at: string;
   }[];
 
   let progress: Record<number, { page: number; completed: number }> = {};

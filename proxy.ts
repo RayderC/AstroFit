@@ -1,9 +1,7 @@
 import { getIronSession } from "iron-session";
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
-
-const SESSION_PASSWORD =
-  process.env.SESSION_SECRET ?? "build_time_placeholder_secret_at_least_32_chars";
+import { sessionOptions } from "./lib/session";
 
 export async function proxy(req: NextRequest) {
   const res = NextResponse.next();
@@ -11,12 +9,13 @@ export async function proxy(req: NextRequest) {
     const session = await getIronSession<{ user?: { id: number; username: string } }>(
       req,
       res,
-      { password: SESSION_PASSWORD, cookieName: "comicorbit_session" }
+      sessionOptions,
     );
     if (!session.user) {
       return NextResponse.redirect(new URL("/login", req.url));
     }
-  } catch {
+  } catch (e) {
+    console.error("[proxy] session error:", e instanceof Error ? e.message : e);
     return NextResponse.redirect(new URL("/login", req.url));
   }
   return res;

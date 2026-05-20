@@ -20,6 +20,15 @@
 __pycache__
 *.pyc
 
+# Claude Code local settings (personal permissions, not project config)
+.claude/
+
+# Personal dev scripts
+git-push.ps1
+
+# Redundant type declaration (module augmentation lives in lib/session.ts)
+iron-session.d.ts
+
 # debug
 npm-debug.log*
 yarn-debug.log*

@@ -42,9 +42,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       params.push(tag);
     }
 
+    // series_folder and original_cover_path are server-side filesystem paths — never expose them.
     const rows = db.prepare(`
       SELECT s.id, s.slug, s.title, s.type, s.source, s.source_url, s.description,
-             s.cover_path, s.original_cover_path, s.status, s.one_shot, s.series_folder, s.reading_mode,
+             s.cover_path, s.status, s.one_shot, s.reading_mode,
              s.created_at, s.updated_at,
              (SELECT COUNT(*) FROM chapters WHERE series_id = s.id) as chapter_count
       FROM series s

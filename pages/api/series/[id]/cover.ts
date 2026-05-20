@@ -7,11 +7,20 @@ import path from "path";
 
 export const config = { api: { bodyParser: { sizeLimit: "10mb" } } };
 
+// Strict allowlist — no SVG (can embed scripts), no AVIF/HEIC (exotic parsers)
+const ALLOWED_MIME: Record<string, string> = {
+  "image/jpeg": ".jpg",
+  "image/png": ".png",
+  "image/webp": ".webp",
+  "image/gif": ".gif",
+};
+const MAX_DECODED_BYTES = 8 * 1024 * 1024; // 8 MB after base64 decode
+
 const customCoversDir = () => path.join(process.env.CONFIG_DIR || "/config", "covers");
 
 function deleteCustomCoverFiles(id: number) {
   const dir = customCoversDir();
-  for (const ext of [".jpg", ".jpeg", ".png", ".webp", ".gif"]) {
+  for (const ext of Object.values(ALLOWED_MIME)) {
     const f = path.join(dir, `${id}${ext}`);
     if (fs.existsSync(f)) { try { fs.unlinkSync(f); } catch { /* ignore */ } }
   }
@@ -33,8 +42,17 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     if (!match) { res.status(400).json({ message: "Invalid image format" }); return; }
 
     const [, mime, base64] = match;
-    const ext = mime === "image/png" ? ".png" : mime === "image/webp" ? ".webp" : mime === "image/gif" ? ".gif" : ".jpg";
+    const ext = ALLOWED_MIME[mime];
+    if (!ext) {
+      res.status(400).json({ message: "Unsupported image type. Use JPEG, PNG, WebP, or GIF." });
+      return;
+    }
+
     const buf = Buffer.from(base64, "base64");
+    if (buf.length > MAX_DECODED_BYTES) {
+      res.status(400).json({ message: "Image must be under 8 MB" });
+      return;
+    }
 
     const row = db.prepare("SELECT cover_path, original_cover_path FROM series WHERE id = ?").get(id) as
       { cover_path: string; original_cover_path: string } | undefined;
@@ -47,7 +65,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       }
     }
 
-    // Remove any existing custom cover files for this series
     deleteCustomCoverFiles(id);
 
     const coverPath = path.join(dir, `${id}${ext}`);
@@ -55,7 +72,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       res.status(500).json({ message: "Failed to save file" }); return;
     }
 
-    // Save the original cover_path the first time only
     const originalToSave = row.original_cover_path || row.cover_path;
     db.prepare(
       "UPDATE series SET cover_path = ?, original_cover_path = ?, updated_at = datetime('now') WHERE id = ?"

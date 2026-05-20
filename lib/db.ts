@@ -27,6 +27,7 @@ db.exec(`
     username TEXT UNIQUE NOT NULL,
     password TEXT NOT NULL DEFAULT '',
     legacy_password TEXT NOT NULL DEFAULT '',
+    email TEXT NOT NULL DEFAULT '',
     is_admin INTEGER NOT NULL DEFAULT 0,
     created_at TEXT NOT NULL DEFAULT (datetime('now'))
   );
@@ -105,37 +106,24 @@ db.exec(`
     FOREIGN KEY (series_id) REFERENCES series(id) ON DELETE CASCADE
   );
 
-  CREATE TABLE IF NOT EXISTS collections (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    user_id INTEGER NOT NULL,
-    name TEXT NOT NULL,
-    created_at TEXT NOT NULL DEFAULT (datetime('now')),
-    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
-  );
-
-  CREATE TABLE IF NOT EXISTS collection_items (
-    collection_id INTEGER NOT NULL,
-    series_id INTEGER NOT NULL,
-    PRIMARY KEY (collection_id, series_id),
-    FOREIGN KEY (collection_id) REFERENCES collections(id) ON DELETE CASCADE,
-    FOREIGN KEY (series_id) REFERENCES series(id) ON DELETE CASCADE
-  );
-
   CREATE INDEX IF NOT EXISTS idx_chapters_series ON chapters(series_id, number);
   CREATE INDEX IF NOT EXISTS idx_queue_status ON download_queue(status);
   CREATE INDEX IF NOT EXISTS idx_read_user ON read_progress(user_id, series_id);
 `);
 
 // Inline migrations — each wrapped in try/catch so re-runs are no-ops.
+// Inline migrations — idempotent ALTER TABLE statements for upgrading existing DBs.
+// New installs get the correct schema from CREATE TABLE above; these only run for
+// users upgrading from an older version.
 const migrations = [
   `ALTER TABLE users ADD COLUMN legacy_password TEXT NOT NULL DEFAULT ''`,
+  `ALTER TABLE users ADD COLUMN email TEXT NOT NULL DEFAULT ''`,
   `ALTER TABLE series ADD COLUMN one_shot INTEGER NOT NULL DEFAULT 0`,
   `ALTER TABLE series ADD COLUMN series_folder TEXT NOT NULL DEFAULT ''`,
+  `ALTER TABLE series ADD COLUMN reading_mode TEXT NOT NULL DEFAULT 'ltr'`,
+  `ALTER TABLE series ADD COLUMN original_cover_path TEXT NOT NULL DEFAULT ''`,
   `ALTER TABLE download_queue ADD COLUMN current_chapter TEXT NOT NULL DEFAULT ''`,
   `ALTER TABLE download_queue ADD COLUMN updated_at TEXT NOT NULL DEFAULT (datetime('now'))`,
-  `ALTER TABLE series ADD COLUMN reading_mode TEXT NOT NULL DEFAULT 'ltr'`,
-  `ALTER TABLE users ADD COLUMN email TEXT NOT NULL DEFAULT ''`,
-  `ALTER TABLE series ADD COLUMN original_cover_path TEXT NOT NULL DEFAULT ''`,
 ];
 
 if (!isBuildPhase) {

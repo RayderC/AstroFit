@@ -21,8 +21,27 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     res.status(400).json({ message: "Missing field(s)" });
     return;
   }
+
+  if (typeof username !== "string") {
+    res.status(400).json({ message: "Invalid username" });
+    return;
+  }
+  const cleanUsername = username.trim().toLowerCase();
+  if (cleanUsername.length < 2 || cleanUsername.length > 50) {
+    res.status(400).json({ message: "Username must be 2–50 characters" });
+    return;
+  }
+  if (!/^[a-z0-9_.-]+$/.test(cleanUsername)) {
+    res.status(400).json({ message: "Username may only contain letters, numbers, _ . -" });
+    return;
+  }
+
   if (typeof password !== "string" || password.length < 8) {
     res.status(400).json({ message: "Password must be at least 8 characters" });
+    return;
+  }
+  if (password.length > 200) {
+    res.status(400).json({ message: "Password must be under 200 characters" });
     return;
   }
 
@@ -30,7 +49,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   try {
     const info = db
       .prepare("INSERT INTO users (username, password, is_admin) VALUES (?, ?, ?)")
-      .run(String(username).toLowerCase(), hash, isAdmin ? 1 : 0);
+      .run(cleanUsername, hash, isAdmin ? 1 : 0);
     res.json({ ok: true, id: info.lastInsertRowid });
   } catch {
     res.status(400).json({ message: "Username already exists" });

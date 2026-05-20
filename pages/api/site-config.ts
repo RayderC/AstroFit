@@ -13,13 +13,14 @@ const EDITABLE_KEYS = new Set([
 ]);
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+  const session = await getIronSession<{ user?: User }>(req, res, sessionOptions);
+  if (!session.user?.isAdmin) return res.status(403).json({ message: "Forbidden" });
+
   if (req.method === "GET") {
     return res.json(getSiteConfig());
   }
 
   if (req.method === "PUT") {
-    const session = await getIronSession<{ user?: User }>(req, res, sessionOptions);
-    if (!session.user?.isAdmin) return res.status(403).json({ message: "Forbidden" });
 
     const updates = req.body ?? {};
     for (const [key, value] of Object.entries(updates)) {
@@ -30,5 +31,5 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.json(getSiteConfig());
   }
 
-  res.status(405).end();
+  return res.status(405).end();
 }

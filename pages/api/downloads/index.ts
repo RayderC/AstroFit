@@ -34,6 +34,13 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       res.status(404).json({ message: "Series not found" });
       return;
     }
+    const active = db.prepare(
+      "SELECT id FROM download_queue WHERE series_id = ? AND status IN ('queued', 'downloading')"
+    ).get(id);
+    if (active) {
+      res.status(409).json({ message: "Already queued" });
+      return;
+    }
     const info = db.prepare("INSERT INTO download_queue (series_id, status) VALUES (?, 'queued')").run(id);
     res.status(201).json({ id: info.lastInsertRowid });
     return;
