@@ -6,12 +6,17 @@ services:
     ports:
       # host:container
       - 7080:7080
+    environment:
+      - SESSION_COOKIE_SECURE=false
+      # Generate a strong secret: openssl rand -hex 32
+      - SESSION_SECRET=${SESSION_SECRET:-change_me_to_a_random_64_char_string}
+      - DATABASE_PATH=/config/comicorbit.db
+      - MANGA_DIRECTORY=/Manga
+      - COMICS_DIRECTORY=/Comics
+      - CONFIG_DIRECTORY=/config
     volumes:
       # Persistent config, SQLite DB, session secret
       - ./config:/config
       # Library: downloaded CBZ files
       - ./Manga:/Manga
       - ./Comics:/Comics
-    env_file:
-      # Copy .env.example to .env and fill in SESSION_SECRET before starting.
-      - .env
