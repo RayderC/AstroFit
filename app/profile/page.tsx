@@ -60,7 +60,37 @@ export default function ProfilePage() {
     );
     fetch("/api/push/subscribe")
       .then((r) => r.ok ? r.json() : null)
-      .then((d) => { if (d) { setVapidKey(d.publicKey); setNotifSubscribed(d.subscribed); } })
+      .then(async (d) => {
+        if (!d) return;
+        setVapidKey(d.publicKey);
+        setNotifSubscribed(d.subscribed);
+        // Cache the VAPID key so the service worker can resubscribe on
+        // pushsubscriptionchange without a roundtrip to the server.
+        if ("serviceWorker" in navigator && "caches" in window) {
+          try {
+            const cache = await caches.open("comicorbit-v2");
+            await cache.put("/__vapid_key", new Response(d.publicKey, { headers: { "Content-Type": "text/plain" } }));
+          } catch { /* non-fatal */ }
+        }
+        // If the local browser subscription's endpoint drifted from what the
+        // server has, re-bind it. iOS silently rotates endpoints.
+        if (d.subscribed && "serviceWorker" in navigator) {
+          try {
+            const reg = await navigator.serviceWorker.ready;
+            const sub = await reg.pushManager.getSubscription();
+            if (sub) {
+              const json = sub.toJSON();
+              await fetch("/api/push/subscribe", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ endpoint: json.endpoint, keys: json.keys }),
+              });
+            } else {
+              setNotifSubscribed(false);
+            }
+          } catch { /* non-fatal */ }
+        }
+      })
       .catch(() => {});
   }, [router]);
 

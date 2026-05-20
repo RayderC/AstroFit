@@ -12,7 +12,26 @@ const EDITABLE_KEYS = new Set([
   "tagline",
   "description",
   "default_manga_source",
+  "VAPID_SUBJECT",
 ]);
+
+function validateValue(key: string, value: string): string | null {
+  if (key === "VAPID_SUBJECT") {
+    const v = value.trim();
+    if (v === "") return null; // clearing -> use default
+    if (!v.startsWith("mailto:") && !v.startsWith("https://")) {
+      return "VAPID_SUBJECT must start with mailto: or https://";
+    }
+    if (v.startsWith("mailto:")) {
+      const email = v.slice("mailto:".length);
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+        return "VAPID_SUBJECT mailto must include a real domain (Apple rejects fake ones)";
+      }
+    }
+    if (v.length > 254) return "VAPID_SUBJECT too long";
+  }
+  return null;
+}
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   const session = await getIronSession<{ user?: User }>(req, res, sessionOptions);
@@ -28,7 +47,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const updates = req.body ?? {};
     for (const [key, value] of Object.entries(updates)) {
       if (!EDITABLE_KEYS.has(key)) continue;
-      setSiteConfigKey(key, value == null ? "" : String(value));
+      const str = value == null ? "" : String(value);
+      const err = validateValue(key, str);
+      if (err) return res.status(400).json({ message: err });
+      setSiteConfigKey(key, str);
     }
 
     return res.json(getSiteConfig());

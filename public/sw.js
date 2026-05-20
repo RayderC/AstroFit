@@ -20,6 +20,43 @@ self.addEventListener('activate', (event) => {
   self.clients.claim();
 });
 
+// iOS silently revokes push subscriptions; this fires when the browser issues
+// a fresh endpoint. Re-register it with the server using the cached VAPID key
+// so the user doesn't have to reopen the app to keep getting notifications.
+self.addEventListener('pushsubscriptionchange', (event) => {
+  event.waitUntil((async () => {
+    try {
+      const cache = await caches.open(CACHE_NAME);
+      const keyResp = await cache.match('/__vapid_key');
+      if (!keyResp) return;
+      const vapidKey = await keyResp.text();
+      const buf = urlBase64ToUint8Array(vapidKey);
+      const sub = await self.registration.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: buf,
+      });
+      const json = sub.toJSON();
+      await fetch('/api/push/subscribe', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ endpoint: json.endpoint, keys: json.keys }),
+        credentials: 'include',
+      });
+    } catch (e) {
+      // Best-effort — client-side resubscribe on next PWA launch is the fallback.
+    }
+  })());
+});
+
+function urlBase64ToUint8Array(base64String) {
+  const padding = '='.repeat((4 - (base64String.length % 4)) % 4);
+  const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+  const raw = atob(base64);
+  const buf = new Uint8Array(raw.length);
+  for (let i = 0; i < raw.length; i++) buf[i] = raw.charCodeAt(i);
+  return buf;
+}
+
 self.addEventListener('push', (event) => {
   let data = { title: 'ComicOrbit', body: 'New chapter available', url: '/' };
   try { data = { ...data, ...event.data.json() }; } catch {}
