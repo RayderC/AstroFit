@@ -2602,7 +2602,8 @@ body > * { position: relative; z-index: 2; }
   flex-shrink: 0;
   width: 150px;
   border-radius: var(--radius);
-  overflow: hidden;
+  /* overflow must stay visible so transform: scale() isn't clipped by the parent */
+  overflow: visible;
   background: var(--surface);
   border: 1px solid var(--border);
   transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
@@ -2625,6 +2626,8 @@ body > * { position: relative; z-index: 2; }
 .shelf-card-cover-link {
   display: block;
   flex-shrink: 0;
+  border-radius: var(--radius) var(--radius) 0 0;
+  overflow: hidden;
 }
 
 .shelf-card-cover {
@@ -2703,6 +2706,8 @@ body > * { position: relative; z-index: 2; }
 .shelf-card-info {
   padding: 10px 10px 12px;
   flex: 1;
+  border-radius: 0 0 var(--radius) var(--radius);
+  overflow: hidden;
 }
 .shelf-card-title {
   font-size: 12px;
