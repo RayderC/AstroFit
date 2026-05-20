@@ -2587,7 +2587,11 @@ body > * { position: relative; z-index: 2; }
   display: flex;
   gap: 14px;
   overflow-x: auto;
-  padding-bottom: 12px;
+  /* Vertical padding gives scaled cards room to paint without being clipped
+     by the implicit overflow context created by overflow-x: auto */
+  padding: 12px 8px 16px;
+  /* Negative margin pulls the padding back so it doesn't shift shelf layout */
+  margin: -12px -8px -4px;
   scrollbar-width: thin;
   scrollbar-color: var(--border-bright) transparent;
 }
