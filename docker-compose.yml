@@ -12,3 +12,6 @@ services:
       # Library: downloaded CBZ files
       - ./Manga:/Manga
       - ./Comics:/Comics
+    env_file:
+      # Copy .env.example to .env and fill in SESSION_SECRET before starting.
+      - .env
