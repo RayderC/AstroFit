@@ -29,6 +29,8 @@ export default function ProfilePage() {
   const [notifBusy, setNotifBusy] = useState(false);
   const [notifError, setNotifError] = useState("");
   const [notifTestResult, setNotifTestResult] = useState<{ text: string; ok: boolean } | null>(null);
+  const [isIOS, setIsIOS] = useState(false);
+  const [isStandalone, setIsStandalone] = useState(false);
 
   useEffect(() => {
     fetch("/api/profile")
@@ -49,6 +51,13 @@ export default function ProfilePage() {
       .catch(() => setLoading(false));
 
     setNotifSupported("serviceWorker" in navigator && "PushManager" in window);
+    const ua = navigator.userAgent;
+    const iosDevice = /iphone|ipad|ipod/i.test(ua) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+    setIsIOS(iosDevice);
+    setIsStandalone(
+      window.matchMedia("(display-mode: standalone)").matches ||
+      !!(navigator as { standalone?: boolean }).standalone
+    );
     fetch("/api/push/subscribe")
       .then((r) => r.ok ? r.json() : null)
       .then((d) => { if (d) { setVapidKey(d.publicKey); setNotifSubscribed(d.subscribed); } })
@@ -196,33 +205,53 @@ export default function ProfilePage() {
         </div>
 
         {/* Push notifications */}
-        {notifSupported && vapidKey && (
-          <div className="card" style={{ padding: "28px" }}>
-            <h2 style={{ fontSize: "15px", fontWeight: 700, marginBottom: "6px" }}>Chapter Notifications</h2>
-            <p style={{ fontSize: "12px", color: "var(--text-subtle)", marginBottom: "16px", lineHeight: 1.5 }}>
-              Get a push notification on this device whenever a new chapter finishes downloading.
-            </p>
-            <div style={{ display: "flex", gap: "8px", flexWrap: "wrap", alignItems: "center" }}>
-              <button className={`btn ${notifSubscribed ? "btn-ghost" : "btn-primary"}`} onClick={toggleNotifications} disabled={notifBusy}>
-                {notifBusy ? "Working…" : notifSubscribed ? "Disable notifications" : "Enable notifications"}
-              </button>
-              {notifSubscribed && (
-                <button className="btn btn-ghost btn-sm" onClick={sendTestNotification}>
-                  Send test
-                </button>
-              )}
+        <div className="card" style={{ padding: "28px" }}>
+          <h2 style={{ fontSize: "15px", fontWeight: 700, marginBottom: "6px" }}>Chapter Notifications</h2>
+          <p style={{ fontSize: "12px", color: "var(--text-subtle)", marginBottom: "16px", lineHeight: 1.5 }}>
+            Get a push notification on this device whenever a new chapter finishes downloading.
+          </p>
+
+          {/* iOS not installed as PWA */}
+          {isIOS && !isStandalone && (
+            <div style={{ background: "rgba(251,191,36,0.08)", border: "1px solid rgba(251,191,36,0.3)", borderRadius: "8px", padding: "12px 14px" }}>
+              <p style={{ fontSize: "13px", color: "#fbbf24", fontWeight: 600, marginBottom: "4px" }}>Add to Home Screen required</p>
+              <p style={{ fontSize: "12px", color: "var(--text-subtle)", lineHeight: 1.6 }}>
+                iOS only supports push notifications for installed apps. Tap the <strong style={{ color: "var(--text)" }}>Share</strong> button in Safari, then choose <strong style={{ color: "var(--text)" }}>Add to Home Screen</strong>. Open the app from your Home Screen and come back here to enable notifications.
+              </p>
             </div>
-            {notifSubscribed && <p style={{ fontSize: "11px", color: "var(--accent-cyan)", marginTop: "10px" }}>✓ Notifications enabled on this device</p>}
-            {notifError && <p style={{ fontSize: "12px", color: "var(--danger)", marginTop: "10px" }}>{notifError}</p>}
-            {notifTestResult && <p style={{ fontSize: "12px", color: notifTestResult.ok ? "var(--success)" : "var(--danger)", marginTop: "10px" }}>{notifTestResult.text}</p>}
-          </div>
-        )}
-        {notifSupported && !vapidKey && (
-          <div className="card" style={{ padding: "28px" }}>
-            <h2 style={{ fontSize: "15px", fontWeight: 700, marginBottom: "6px" }}>Chapter Notifications</h2>
+          )}
+
+          {/* Supported and keys available */}
+          {notifSupported && vapidKey && (
+            <>
+              <div style={{ display: "flex", gap: "8px", flexWrap: "wrap", alignItems: "center" }}>
+                <button className={`btn ${notifSubscribed ? "btn-ghost" : "btn-primary"}`} onClick={toggleNotifications} disabled={notifBusy}>
+                  {notifBusy ? "Working…" : notifSubscribed ? "Disable notifications" : "Enable notifications"}
+                </button>
+                {notifSubscribed && (
+                  <button className="btn btn-ghost btn-sm" onClick={sendTestNotification}>
+                    Send test
+                  </button>
+                )}
+              </div>
+              {notifSubscribed && <p style={{ fontSize: "11px", color: "var(--accent-cyan)", marginTop: "10px" }}>✓ Notifications enabled on this device</p>}
+              {notifError && <p style={{ fontSize: "12px", color: "var(--danger)", marginTop: "10px" }}>{notifError}</p>}
+              {notifTestResult && <p style={{ fontSize: "12px", color: notifTestResult.ok ? "var(--success)" : "var(--danger)", marginTop: "10px" }}>{notifTestResult.text}</p>}
+            </>
+          )}
+
+          {/* Not supported (non-iOS) */}
+          {!notifSupported && !isIOS && (
+            <p style={{ fontSize: "12px", color: "var(--text-subtle)" }}>
+              Your browser does not support push notifications. Try Chrome or Edge.
+            </p>
+          )}
+
+          {/* Keys missing */}
+          {notifSupported && !vapidKey && (
             <p style={{ fontSize: "12px", color: "var(--danger)" }}>Push keys not available — check server logs.</p>
-          </div>
-        )}
+          )}
+        </div>
       </div>
     </div>
   );
