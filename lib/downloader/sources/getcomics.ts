@@ -1,4 +1,5 @@
 import * as cheerio from "cheerio";
+import { File as MegaFile } from "megajs";
 import type {
   ChapterPayload,
   ChapterRef,
@@ -22,8 +23,9 @@ const PREFERRED_HOSTS = [
   /dl\d*\./i,                   // generic CDN subdomains
   /mediafire\.com/i,
   /wetransfer\.com/i,
+  /mega\.nz/i,                  // supported via megajs
 ];
-const UNSUPPORTED_HOSTS = /mega\.nz|mega\.io|terabox|4shared|zippyshare|rapidgator/i;
+const UNSUPPORTED_HOSTS = /terabox|4shared|zippyshare|rapidgator/i;
 
 void PREFERRED_HOSTS; // referenced for documentation; scoring is inline below
 
@@ -50,6 +52,19 @@ function extFromUrlOrCt(url: string, ct: string): "cbz" | "cbr" | "zip" {
   if (m) return m[1].toLowerCase() === "rar" ? "cbr" : (m[1].toLowerCase() as "cbz" | "cbr" | "zip");
   if (ct.includes("rar")) return "cbr";
   return "cbz";
+}
+
+// Mega.nz download via megajs (handles AES-CTR decryption transparently)
+async function downloadFromMega(url: string): Promise<Buffer | null> {
+  try {
+    const file = MegaFile.fromURL(url);
+    await file.loadAttributes();
+    const buf = await file.downloadBuffer({});
+    return buf as Buffer;
+  } catch (e) {
+    console.warn("[getcomics] mega download failed:", (e as Error).message);
+    return null;
+  }
 }
 
 // PixelDrain direct download: /u/{id} or /l/{id} → /api/file/{id}?download
@@ -185,6 +200,9 @@ export const getcomicsSource: Source = {
       // GetComics own redirect/CDN
       if (/getcomics\.(org|info)\/(go|get|dls?)\//i.test(url)) score += 70;
 
+      // Mega.nz — supported via megajs, ranked below direct hosts
+      if (/mega\.nz\/(file|folder)\//i.test(url)) score += 60;
+
       // Generic CDN-like domains
       if (/dl\d*\.[a-z]+\.(com|net|org)/i.test(url)) score += 40;
 
@@ -237,6 +255,17 @@ export const getcomicsSource: Source = {
         continue;
       }
 
+      // ── Mega.nz: download and decrypt via megajs ──
+      if (/mega\.nz\/(file|folder)\//i.test(candidateUrl)) {
+        const buf = await downloadFromMega(candidateUrl);
+        if (buf) {
+          onProgress(1, 1);
+          const ext = extFromUrlOrCt(candidateUrl, "");
+          return { kind: "archive", data: buf, ext };
+        }
+        continue;
+      }
+
       // ── Try to resolve to a direct file through redirects ──
       // resolveToDirectFile buffers the file body when it successfully identifies one,
       // so we don't need to re-download it here (avoids double-download).
@@ -244,6 +273,17 @@ export const getcomicsSource: Source = {
       if (!resolved) continue;
 
       if (resolved.unsupported) { lastUnsupportedHost = resolved.unsupported; continue; }
+
+      if (resolved.megaUrl) {
+        const buf = await downloadFromMega(resolved.megaUrl);
+        if (buf) {
+          onProgress(1, 1);
+          const ext = extFromUrlOrCt(resolved.megaUrl, "");
+          return { kind: "archive", data: buf, ext };
+        }
+        continue;
+      }
+
       if (!resolved.fileUrl) continue;
 
       try {
@@ -292,6 +332,7 @@ interface ResolveResult {
   data?: Buffer;   // pre-buffered file body when available
   ext?: string;
   unsupported?: string;
+  megaUrl?: string;  // redirect landed on Mega.nz — caller handles download
 }
 
 async function resolveToDirectFile(
@@ -327,7 +368,12 @@ async function resolveToDirectFile(
     const finalUrl = res.url;
     const ct = res.headers.get("content-type")?.split(";")[0].trim() || "";
 
-    // Redirect may have landed on an unsupported host (e.g. getcomics /go/ → mega.nz)
+    // Redirect may have landed on Mega.nz (getcomics /go/ → mega.nz)
+    if (/mega\.nz\/(file|folder)\//i.test(finalUrl)) {
+      return { megaUrl: finalUrl };
+    }
+
+    // Redirect may have landed on another unsupported host
     if (UNSUPPORTED_HOSTS.test(finalUrl)) {
       try { return { unsupported: new URL(finalUrl).hostname }; } catch { return null; }
     }
