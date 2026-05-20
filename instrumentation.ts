@@ -5,6 +5,7 @@ export async function register() {
   const { runMigrationIfNeeded, backfillPageCounts } = await import("./lib/migration");
   const { startWorker, scanAllSeries } = await import("./lib/downloader");
   const { ensureVapidKeys } = await import("./lib/webpush");
+  const { startOutboxFlusher } = await import("./lib/notificationOutbox");
 
   try {
     runMigrationIfNeeded();
@@ -19,6 +20,7 @@ export async function register() {
   backfillPageCounts().catch((e) => console.warn("[instrumentation] backfill:", e));
 
   startWorker();
+  startOutboxFlusher();
 
   // Scan for new chapters on startup, then repeat every 6 hours.
   const SIX_HOURS = 6 * 60 * 60 * 1000;

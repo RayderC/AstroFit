@@ -136,6 +136,31 @@ const migrations = [
     UNIQUE(user_id, endpoint),
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
   )`,
+  // Batches per-chapter pushes into a single notification per (user, series).
+  // The outbox flusher sends rows once they've been idle for the batch window.
+  `CREATE TABLE IF NOT EXISTS notification_outbox (
+    user_id INTEGER NOT NULL,
+    series_id INTEGER NOT NULL,
+    chapter_count INTEGER NOT NULL DEFAULT 1,
+    latest_chapter REAL,
+    first_at TEXT NOT NULL DEFAULT (datetime('now')),
+    last_at TEXT NOT NULL DEFAULT (datetime('now')),
+    PRIMARY KEY (user_id, series_id),
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    FOREIGN KEY (series_id) REFERENCES series(id) ON DELETE CASCADE
+  )`,
+  // Rolling diagnostics: last N push attempts so admins can see if Apple/Google
+  // is rejecting endpoints (typical 410 Gone, 4xx VAPID errors, etc).
+  `CREATE TABLE IF NOT EXISTS push_log (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER,
+    endpoint_host TEXT NOT NULL DEFAULT '',
+    status_code INTEGER,
+    error TEXT NOT NULL DEFAULT '',
+    title TEXT NOT NULL DEFAULT '',
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+  )`,
+  `CREATE INDEX IF NOT EXISTS idx_push_log_created ON push_log(created_at DESC)`,
 ];
 
 if (!isBuildPhase) {

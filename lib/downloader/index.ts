@@ -6,7 +6,7 @@ import { sanitizeFsName } from "../url";
 import { isSafeExternalUrlResolved } from "../safeUrl";
 import { getSource } from "./sources";
 import { publish, remove } from "./progress";
-import { sendPushToAll } from "../webpush";
+import { enqueueChapterNotification } from "../notificationOutbox";
 import type { Source } from "./sources/types";
 
 const POLL_MS = 5000;
@@ -325,12 +325,9 @@ async function runJob(job: QueueRow): Promise<void> {
         VALUES (?, ?, ?, ?, ?, datetime('now'))
       `).run(s.id, ch.number, ch.title || "", finalTarget, pages);
 
-      // Notify all subscribed users that a new chapter is available.
-      sendPushToAll({
-        title: series.title,
-        body: series.one_shot === 1 ? "Now available in your library" : `Chapter ${ch.number} downloaded`,
-        url: `/library/${s.id}`,
-      }).catch(() => {});
+      // Enqueue a per-favoriter notification; the outbox flusher coalesces
+      // bursts (e.g. catching up 5 chapters) into a single push.
+      try { enqueueChapterNotification(s.id, ch.number); } catch { /* non-fatal */ }
 
       completed++;
 

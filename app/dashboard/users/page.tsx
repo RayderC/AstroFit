@@ -1,6 +1,22 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
+import { useSearchParams } from "next/navigation";
+
+function PrefillFromQuery({ onPrefill }: { onPrefill: (title: string, body: string) => void }) {
+  const params = useSearchParams();
+  useEffect(() => {
+    const t = params?.get("notifyTitle") || "";
+    const b = params?.get("notifyBody") || "";
+    if (t || b) {
+      onPrefill(t, b);
+      setTimeout(() => {
+        document.getElementById("admin-notify-panel")?.scrollIntoView({ behavior: "smooth", block: "start" });
+      }, 100);
+    }
+  }, [params, onPrefill]);
+  return null;
+}
 
 type AdminUser = {
   id: number;
@@ -156,6 +172,11 @@ export default function UsersPage() {
 
   return (
     <>
+      <Suspense fallback={null}>
+        <PrefillFromQuery
+          onPrefill={(t, b) => { setNotifyTitle(t); setNotifyBody(b); }}
+        />
+      </Suspense>
       <div className="dash-header">
         <div>
           <h1 className="dash-title">Users</h1>
@@ -191,7 +212,7 @@ export default function UsersPage() {
       </div>
 
       {/* Push notification panel */}
-      <div className="stat-card" style={{ padding: "24px", marginBottom: "24px" }}>
+      <div id="admin-notify-panel" className="stat-card" style={{ padding: "24px", marginBottom: "24px" }}>
         <h2 style={{ fontSize: "18px", marginBottom: "4px" }}>Send Test Notification</h2>
         <p style={{ fontSize: "12px", color: "var(--text-subtle)", marginBottom: "16px" }}>
           Only users who have enabled notifications in their profile will receive it.

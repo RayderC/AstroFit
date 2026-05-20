@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 
 export interface ProgressState {
   queueId: number;
@@ -115,9 +116,18 @@ export default function DownloadProgress() {
               {err && <p className="form-error" style={{ marginTop: "8px" }}>{err}</p>}
             </div>
             <span className={`progress-status ${status}`}>{status}</span>
-            <div style={{ display: "flex", gap: "6px" }}>
+            <div style={{ display: "flex", gap: "6px", flexWrap: "wrap" }}>
               {(status === "error" || status === "paused" || status === "done") && (
                 <button className="btn btn-secondary btn-sm" onClick={() => handleRetry(q.id)}>Retry</button>
+              )}
+              {status === "error" && (
+                <Link
+                  className="btn btn-ghost btn-sm"
+                  href={`/dashboard/users?notifyTitle=${encodeURIComponent(`Download failed: ${q.title}`)}&notifyBody=${encodeURIComponent(err || "Download failed — see dashboard for details")}`}
+                  title="Pre-fill the admin notify form with this failure"
+                >
+                  Notify users
+                </Link>
               )}
               <button className="btn btn-danger btn-sm" onClick={() => handleCancel(q.id)}>Remove</button>
             </div>

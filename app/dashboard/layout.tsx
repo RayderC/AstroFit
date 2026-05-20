@@ -42,6 +42,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     { href: "/dashboard/library", label: "Library", icon: "⬡" },
     { href: "/dashboard/settings", label: "Settings", icon: "⚙" },
     { href: "/dashboard/users", label: "Users", icon: "◉" },
+    { href: "/dashboard/notifications", label: "Notifications", icon: "✉" },
   ];
 
   return (
