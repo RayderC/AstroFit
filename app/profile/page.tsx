@@ -234,6 +234,19 @@ export default function ProfilePage() {
           </form>
         </div>
 
+        {/* OPDS — read your library from external clients */}
+        <div className="card" style={{ padding: "28px", marginBottom: "24px" }}>
+          <h2 style={{ fontSize: "15px", fontWeight: 700, marginBottom: "6px" }}>OPDS feed</h2>
+          <p style={{ fontSize: "12px", color: "var(--text-subtle)", marginBottom: "12px", lineHeight: 1.5 }}>
+            Browse and download your library from native comic readers (Panels, Chunky,
+            Paperback on iOS; Moon+ Reader, KyBook on Android). Add a new OPDS catalog
+            in the client and use your ComicOrbit username and password.
+          </p>
+          <code style={{ display: "block", fontSize: "12px", padding: "10px 12px", background: "rgba(255,255,255,0.04)", border: "1px solid var(--border)", borderRadius: "6px", fontFamily: "var(--font-mono)", wordBreak: "break-all" }}>
+            {typeof window !== "undefined" ? `${window.location.origin}/opds` : "/opds"}
+          </code>
+        </div>
+
         {/* Push notifications */}
         <div className="card" style={{ padding: "28px" }}>
           <h2 style={{ fontSize: "15px", fontWeight: 700, marginBottom: "6px" }}>Chapter Notifications</h2>
