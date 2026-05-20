@@ -79,6 +79,7 @@ export default function Navigation() {
                 <Link
                   href="/profile"
                   className={`nav-profile-btn${pathname.startsWith("/profile") ? " active" : ""}`}
+                  title="Profile & settings"
                 >
                   <span className="nav-profile-icon">◉</span>
                   {username}
@@ -114,7 +115,7 @@ export default function Navigation() {
         {isLoggedIn && (
           <div className="nav-mobile-user">
             <Link href="/profile" className={`nav-mobile-link${pathname.startsWith("/profile") ? " active" : ""}`}>
-              <span className="nav-profile-icon">◉</span> {username}
+              <span className="nav-profile-icon">◉</span> {username} — Profile
             </Link>
             <button onClick={handleLogout} className="btn btn-ghost btn-sm" style={{ width: "100%", marginTop: "8px" }}>
               Log out
