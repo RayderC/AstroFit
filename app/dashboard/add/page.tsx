@@ -110,7 +110,13 @@ export default function AddSeriesPage() {
       {results.map((hit) => (
         <div key={`${hit.source}::${hit.url}`} className="search-result">
           <div className="search-result-cover">
-            {hit.cover ? <img src={hit.cover} alt={hit.title} loading="lazy" /> : null}
+            {hit.cover ? (
+              <img
+                src={`/api/proxy-img?url=${encodeURIComponent(hit.cover)}`}
+                alt={hit.title}
+                loading="lazy"
+              />
+            ) : null}
           </div>
           <div className="search-result-body">
             <div className="search-result-title">{hit.title}</div>

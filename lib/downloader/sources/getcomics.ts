@@ -171,6 +171,7 @@ export const getcomicsSource: Source = {
     // ── Score and sort links by likelihood of being the file ──
     interface Candidate { url: string; score: number; text: string; }
     const candidates: Candidate[] = [];
+    let lastUnsupportedHostSeen: string | null = null;
 
     for (const { url, text } of allLinks) {
       let score = 0;
@@ -192,8 +193,11 @@ export const getcomicsSource: Source = {
       if (/\bdownload\b/i.test(text)) score += 15;
       if (/\bmirror\b/i.test(text)) score += 10;
 
-      // Deprioritise known-unsupported hosts
-      if (UNSUPPORTED_HOSTS.test(url)) score = Math.max(score - 200, -1);
+      // Deprioritise known-unsupported hosts — track them for error reporting
+      if (UNSUPPORTED_HOSTS.test(url)) {
+        try { lastUnsupportedHostSeen = new URL(url).hostname; } catch { /* ignore */ }
+        score = Math.max(score - 200, -1);
+      }
 
       if (score > 0) candidates.push({ url, score, text });
     }
@@ -214,6 +218,9 @@ export const getcomicsSource: Source = {
     }
 
     if (ranked.length === 0) {
+      if (lastUnsupportedHostSeen) {
+        return { kind: "unsupported_host", host: lastUnsupportedHostSeen, url: ref.externalId };
+      }
       throw new Error(`No download links found on page: ${ref.externalId}`);
     }
 
@@ -227,12 +234,6 @@ export const getcomicsSource: Source = {
           onProgress(1, 1);
           return { kind: "archive", data: buf, ext: "cbz" };
         }
-        continue;
-      }
-
-      // ── Known unsupported hosts ──
-      if (UNSUPPORTED_HOSTS.test(candidateUrl)) {
-        try { lastUnsupportedHost = new URL(candidateUrl).hostname; } catch { /* ignore */ }
         continue;
       }
 
@@ -275,8 +276,9 @@ export const getcomicsSource: Source = {
       }
     }
 
-    if (lastUnsupportedHost) {
-      return { kind: "unsupported_host", host: lastUnsupportedHost, url: ref.externalId };
+    const unsupportedHost = lastUnsupportedHost || lastUnsupportedHostSeen;
+    if (unsupportedHost) {
+      return { kind: "unsupported_host", host: unsupportedHost, url: ref.externalId };
     }
     throw new Error(`Could not download any file from: ${ref.externalId}`);
   },
@@ -324,6 +326,11 @@ async function resolveToDirectFile(
     });
     const finalUrl = res.url;
     const ct = res.headers.get("content-type")?.split(";")[0].trim() || "";
+
+    // Redirect may have landed on an unsupported host (e.g. getcomics /go/ → mega.nz)
+    if (UNSUPPORTED_HOSTS.test(finalUrl)) {
+      try { return { unsupported: new URL(finalUrl).hostname }; } catch { return null; }
+    }
 
     // If the final URL or content-type indicates a binary file, buffer and return it
     // so the caller can use the data directly without a second fetch.
