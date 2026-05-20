@@ -12,7 +12,7 @@ export default function LibraryPage() {
   const [completedIds, setCompletedIds] = useState<Set<number>>(new Set());
   const [loading, setLoading] = useState(true);
   const [tag, setTag] = useState("");
-  const [type, setType] = useState<"" | "manga" | "comic">("");
+  const [type] = useState("");
   const [status, setStatus] = useState("");
   const [q, setQ] = useState("");
   const [filtersOpen, setFiltersOpen] = useState(false);
@@ -70,7 +70,7 @@ export default function LibraryPage() {
   const activeFilterCount = [status, tag].filter(Boolean).length;
 
   function clearFilters() {
-    setTag(""); setType(""); setStatus(""); setQ("");
+    setTag(""); setStatus(""); setQ("");
   }
 
   function handleMarkAllRead(id: number, completed: boolean) {
@@ -95,19 +95,6 @@ export default function LibraryPage() {
         </div>
 
         <div className="library-controls">
-          {/* Type tabs — always visible */}
-          <div className="library-type-tabs">
-            <button className={`filter-chip${!type ? " filter-chip--active" : ""}`} onClick={() => setType("")}>
-              All <span className="filter-chip-count">{series.length}</span>
-            </button>
-            <button className={`filter-chip${type === "manga" ? " filter-chip--active" : ""}`} onClick={() => setType("manga")}>
-              Manga <span className="filter-chip-count">{series.filter((s) => s.type === "manga").length}</span>
-            </button>
-            <button className={`filter-chip${type === "comic" ? " filter-chip--active" : ""}`} onClick={() => setType("comic")}>
-              Comics <span className="filter-chip-count">{series.filter((s) => s.type === "comic").length}</span>
-            </button>
-          </div>
-
           {/* Search + Filters button row */}
           <div className="library-search-row">
             <input

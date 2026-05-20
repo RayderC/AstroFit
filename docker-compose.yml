@@ -12,11 +12,9 @@ services:
       - SESSION_SECRET=${SESSION_SECRET:-change_me_to_a_random_64_char_string}
       - DATABASE_PATH=/config/comicorbit.db
       - MANGA_DIRECTORY=/Manga
-      - COMICS_DIRECTORY=/Comics
       - CONFIG_DIRECTORY=/config
     volumes:
       # Persistent config, SQLite DB, session secret
       - ./config:/config
       # Library: downloaded CBZ files
       - ./Manga:/Manga
-      - ./Comics:/Comics

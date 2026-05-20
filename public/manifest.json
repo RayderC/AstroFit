@@ -1,7 +1,7 @@
 {
   "name": "ComicOrbit",
   "short_name": "ComicOrbit",
-  "description": "Your self-hosted manga and comic library",
+  "description": "Your self-hosted manga library",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#0a0a12",

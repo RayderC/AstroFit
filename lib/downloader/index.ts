@@ -14,7 +14,7 @@ const aborts = new Map<number, AbortController>();
 interface SeriesRow {
   id: number;
   title: string;
-  type: "manga" | "comic";
+  type: string;
   source: string;
   source_url: string;
   series_folder: string;
@@ -106,9 +106,7 @@ function getSeries(id: number): SeriesRow | null {
 
 function ensureSeriesFolder(s: SeriesRow): string {
   const cfg = getSiteConfig();
-  const base = s.type === "comic"
-    ? (cfg.COMICS_DIRECTORY || "/Comics")
-    : (cfg.MANGA_DIRECTORY || "/Manga");
+  const base = cfg.MANGA_DIRECTORY || "/Manga";
 
   // If a stored folder exists on disk, use it; otherwise (re)create at the correct base path.
   if (s.series_folder && fs.existsSync(s.series_folder)) return s.series_folder;

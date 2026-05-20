@@ -1,18 +1,13 @@
 import { mangadexSource } from "./mangadex";
 import { mangafreakSource } from "./mangafreak";
-import { getcomicsSource } from "./getcomics";
-import { comicextraSource } from "./comicextra";
 import type { Source, SearchResult } from "./types";
 
 export const SOURCES: Record<string, Source> = {
   mangadex: mangadexSource,
   mangafreak: mangafreakSource,
-  getcomics: getcomicsSource,
-  comicextra: comicextraSource,
 };
 
 export const MANGA_SOURCES = ["mangafreak", "mangadex"] as const;
-export const COMIC_SOURCES = ["getcomics", "comicextra"] as const;
 
 export function getSource(id: string): Source {
   const s = SOURCES[id];

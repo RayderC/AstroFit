@@ -9,7 +9,6 @@ export const config = { api: { bodyParser: { sizeLimit: "16kb" } } };
 const EDITABLE_KEYS = new Set([
   "SITE_NAME",
   "MANGA_DIRECTORY",
-  "COMICS_DIRECTORY",
   "tagline",
   "description",
   "default_manga_source",

@@ -21,7 +21,7 @@ export interface QueueItem {
   added_at: string;
   updated_at: string;
   title: string;
-  type: "manga" | "comic";
+  type?: string;
   slug: string;
   source: string;
 }

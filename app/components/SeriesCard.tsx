@@ -2,13 +2,12 @@
 
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
-import { TypeBadge } from "./StatusBadge";
 
 export interface Series {
   id: number;
   slug: string;
   title: string;
-  type: "manga" | "comic";
+  type?: string;
   cover_path?: string;
   status?: string;
   description?: string;
@@ -116,9 +115,6 @@ export default function SeriesCard({
           ) : null}
           <div className="series-card-media-placeholder">◈</div>
 
-          <div className="series-card-type">
-            <TypeBadge type={series.type} />
-          </div>
           <button
             className={`series-card-favorite${fav ? " active" : ""}`}
             onClick={toggle}

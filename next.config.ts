@@ -27,7 +27,7 @@ const securityHeaders = [
 
 const nextConfig: NextConfig = {
   output: "standalone",
-  serverExternalPackages: ["better-sqlite3", "yauzl", "archiver", "megajs"],
+  serverExternalPackages: ["better-sqlite3", "yauzl", "archiver"],
   // Fix Turbopack workspace root detection when next is not at the filesystem root.
   turbopack: {
     root: path.resolve(__dirname),

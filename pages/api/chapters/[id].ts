@@ -8,10 +8,7 @@ import { checkCsrf } from "../../../lib/csrf";
 
 function getAllowedChapterDirs(): string[] {
   const cfg = getSiteConfig();
-  return [
-    cfg.MANGA_DIRECTORY || "/Manga",
-    cfg.COMICS_DIRECTORY || "/Comics",
-  ].map((d) => path.resolve(d));
+  return [cfg.MANGA_DIRECTORY || "/Manga"].map((d) => path.resolve(d));
 }
 
 function isChapterPathSafe(filePath: string): boolean {

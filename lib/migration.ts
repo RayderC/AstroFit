@@ -16,7 +16,7 @@ interface OldUserFile {
 interface OldQueueEntry {
   series_name: string;
   read_online_link: string;
-  folder_type: "manga" | "comic";
+  folder_type?: string;
   series_folder?: string;
   poster_path?: string;
   description?: string;
@@ -103,7 +103,7 @@ function importQueue(): Set<string> {
       insertSeries.run(
         slug,
         item.series_name,
-        item.folder_type === "comic" ? "comic" : "manga",
+        "manga",
         item.read_online_link || "",
         item.description || "",
         item.poster_path || "",
@@ -137,9 +137,8 @@ function uniqueSlug(title: string): string {
 
 function scanLibraryFromDisk() {
   const cfg = getSiteConfig();
-  const dirs: { dir: string; type: "manga" | "comic" }[] = [
+  const dirs: { dir: string; type: "manga" }[] = [
     { dir: cfg.MANGA_DIRECTORY || "/Manga", type: "manga" },
-    { dir: cfg.COMICS_DIRECTORY || "/Comics", type: "comic" },
   ];
 
   for (const { dir, type } of dirs) {
@@ -161,7 +160,7 @@ function scanLibraryFromDisk() {
   }
 }
 
-function importSeriesFolder(folder: string, name: string, type: "manga" | "comic") {
+function importSeriesFolder(folder: string, name: string, type: "manga") {
   const safeName = sanitizeFsName(name);
   const slug = ensureUniqueSlug(safeName, folder);
 

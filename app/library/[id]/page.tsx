@@ -4,7 +4,7 @@ import { getIronSession } from "iron-session";
 import { cookies } from "next/headers";
 import { sessionOptions, User } from "@/lib/session";
 import Navigation from "../../components/Navigation";
-import { StatusBadge, TypeBadge } from "../../components/StatusBadge";
+import { StatusBadge } from "../../components/StatusBadge";
 import ChapterList, { type Chapter } from "../../components/ChapterList";
 import SeriesDetailActions from "./SeriesDetailActions";
 import DescriptionExpander from "../../components/DescriptionExpander";
@@ -16,7 +16,7 @@ interface SeriesRow {
   id: number;
   slug: string;
   title: string;
-  type: "manga" | "comic";
+  type: string;
   description: string;
   cover_path: string;
   status: string;
@@ -68,9 +68,6 @@ export default async function SeriesDetail({
           </div>
 
           <div>
-            <div style={{ marginBottom: "10px" }}>
-              <TypeBadge type={series.type} />
-            </div>
             <h1 className="project-detail-title">{series.title}</h1>
 
             <div className="series-detail-meta-row">

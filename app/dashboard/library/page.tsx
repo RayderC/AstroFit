@@ -6,7 +6,7 @@ import { useEffect, useRef, useState } from "react";
 type ReadingMode = "ltr" | "rtl" | "webtoon";
 
 interface SeriesRow {
-  id: number; slug: string; title: string; type: "manga" | "comic";
+  id: number; slug: string; title: string;
   status: string; source: string; source_url: string;
   reading_mode: ReadingMode;
   original_cover_path: string;
@@ -130,7 +130,6 @@ export default function AdminLibraryPage() {
             <thead>
               <tr>
                 <th>Title</th>
-                <th>Type</th>
                 <th>Source</th>
                 <th>Status</th>
                 <th>Reading Mode</th>
@@ -145,7 +144,6 @@ export default function AdminLibraryPage() {
                   <td>
                     <Link href={`/library/${s.id}`} style={{ color: "var(--text)", fontWeight: 600 }}>{s.title}</Link>
                   </td>
-                  <td><span className={`type-badge type-${s.type}`}>{s.type}</span></td>
                   <td style={{ color: "var(--text-muted)", fontFamily: "var(--font-mono)", fontSize: "12px" }}>{s.source}</td>
                   <td>
                     {s.status !== "unknown"

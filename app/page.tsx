@@ -283,7 +283,7 @@ export default async function Home() {
 
       <footer className="site-footer">
         <p style={{ fontSize: "13px", color: "var(--text-subtle)" }}>
-          ComicOrbit — self-hosted comic &amp; manga library.
+          ComicOrbit — self-hosted manga library.
         </p>
       </footer>
     </div>

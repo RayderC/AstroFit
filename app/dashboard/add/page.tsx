@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 
 interface SearchHit {
   source: string;
-  type: "manga" | "comic";
+  type: string;
   title: string;
   url: string;
   cover?: string;
@@ -18,7 +18,6 @@ interface SearchHit {
 export default function AddSeriesPage() {
   const router = useRouter();
   const [q, setQ] = useState("");
-  const [type, setType] = useState<"" | "manga" | "comic">("");
   const [searching, setSearching] = useState(false);
   const [results, setResults] = useState<SearchHit[]>([]);
   const [adding, setAdding] = useState<string | null>(null);
@@ -32,7 +31,6 @@ export default function AddSeriesPage() {
     try {
       const u = new URL("/api/search", window.location.origin);
       u.searchParams.set("q", q);
-      if (type) u.searchParams.set("type", type);
       const r = await fetch(u);
       if (!r.ok) throw new Error("search failed");
       const data = await r.json();
@@ -53,7 +51,6 @@ export default function AddSeriesPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           title: hit.title,
-          type: hit.type,
           source: hit.source,
           source_url: hit.url,
           description: hit.description || "",
@@ -74,7 +71,7 @@ export default function AddSeriesPage() {
       <div className="dash-header">
         <div>
           <h1 className="dash-title">Add Series</h1>
-          <p className="dash-subtitle">Search MangaDex, MangaFreak, and GetComics, then queue downloads.</p>
+          <p className="dash-subtitle">Search MangaDex and MangaFreak, then queue downloads.</p>
         </div>
       </div>
 
@@ -87,11 +84,6 @@ export default function AddSeriesPage() {
           onChange={(e) => setQ(e.target.value)}
           required
         />
-        <select className="form-select" value={type} onChange={(e) => setType(e.target.value as typeof type)} style={{ maxWidth: "160px" }}>
-          <option value="">All</option>
-          <option value="manga">Manga only</option>
-          <option value="comic">Comics only</option>
-        </select>
         <button type="submit" className="btn btn-primary" disabled={searching || !q.trim()}>
           {searching ? "Searching…" : "Search"}
         </button>
@@ -103,7 +95,7 @@ export default function AddSeriesPage() {
         <div className="empty-state">
           <div className="empty-icon">⌕</div>
           <p className="empty-title">Start a search</p>
-          <p className="empty-desc">Type a title above to discover series from supported sources.</p>
+          <p className="empty-desc">Type a title above to discover manga from supported sources.</p>
         </div>
       )}
 
@@ -121,7 +113,6 @@ export default function AddSeriesPage() {
           <div className="search-result-body">
             <div className="search-result-title">{hit.title}</div>
             <div className="search-result-meta">
-              <span className={`type-badge type-${hit.type}`}>{hit.type}</span>
               <span style={{ color: "var(--text-subtle)", fontFamily: "var(--font-mono)" }}>{`// ${hit.source}`}</span>
               {hit.status && hit.status !== "unknown" && <span className={`status-badge status-${hit.status}`}>{hit.status}</span>}
               {hit.tags?.slice(0, 4).map((t) => <span key={t} className="tag">{t}</span>)}

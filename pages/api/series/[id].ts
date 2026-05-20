@@ -14,10 +14,7 @@ const VALID_STATUS = new Set(["unknown", "ongoing", "completed", "hiatus"]);
 
 function getAllowedSeriesDirs(): string[] {
   const cfg = getSiteConfig();
-  return [
-    cfg.MANGA_DIRECTORY || "/Manga",
-    cfg.COMICS_DIRECTORY || "/Comics",
-  ].map((d) => path.resolve(d));
+  return [cfg.MANGA_DIRECTORY || "/Manga"].map((d) => path.resolve(d));
 }
 
 function isSeriesFolderSafe(folder: string): boolean {

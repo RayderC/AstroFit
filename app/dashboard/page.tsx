@@ -5,8 +5,6 @@ import { useEffect, useState } from "react";
 
 interface Counts {
   series: number;
-  manga: number;
-  comic: number;
   chapters: number;
   queued: number;
   downloading: number;
@@ -29,8 +27,6 @@ export default function DashboardOverview() {
       const us = Array.isArray(users) ? users : [];
       setC({
         series: arr.length,
-        manga: arr.filter((s: { type: string }) => s.type === "manga").length,
-        comic: arr.filter((s: { type: string }) => s.type === "comic").length,
         chapters: 0,
         queued: dl.filter((q: { status: string }) => q.status === "queued").length,
         downloading: dl.filter((q: { status: string }) => q.status === "downloading").length,
@@ -67,12 +63,7 @@ export default function DashboardOverview() {
         <>
           <div className="stats-row">
             <div className="stat-card"><div className="stat-value">{c.series}</div><div className="stat-label">Series</div></div>
-            <div className="stat-card"><div className="stat-value">{c.manga}</div><div className="stat-label">Manga</div></div>
-            <div className="stat-card"><div className="stat-value">{c.comic}</div><div className="stat-label">Comics</div></div>
             <div className="stat-card"><div className="stat-value">{c.users}</div><div className="stat-label">Users</div></div>
-          </div>
-
-          <div className="stats-row">
             <div className="stat-card"><div className="stat-value">{c.downloading}</div><div className="stat-label">Downloading</div></div>
             <div className="stat-card"><div className="stat-value">{c.queued}</div><div className="stat-label">Queued</div></div>
           </div>

@@ -1,4 +1,4 @@
-export type SeriesType = "manga" | "comic";
+export type SeriesType = "manga";
 
 export interface SearchResult {
   source: string;

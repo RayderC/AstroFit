@@ -54,7 +54,7 @@ COPY docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
 # Strip Windows CRLF line endings so the shebang works on Linux
 RUN sed -i 's/\r$//' /usr/local/bin/docker-entrypoint.sh \
     && chmod +x /usr/local/bin/docker-entrypoint.sh \
-    && mkdir -p /config /Manga /Comics
+    && mkdir -p /config /Manga
 
 EXPOSE 7080
 

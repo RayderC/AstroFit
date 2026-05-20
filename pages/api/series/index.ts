@@ -14,7 +14,7 @@ export interface SeriesRow {
   id: number;
   slug: string;
   title: string;
-  type: "manga" | "comic";
+  type: string;
   source: string;
   source_url: string;
   description: string;
@@ -31,10 +31,9 @@ export interface SeriesRow {
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method === "GET") {
-    const { type, tag, status, q } = req.query;
+    const { status, q, tag } = req.query;
     const where: string[] = [];
     const params: unknown[] = [];
-    if (type === "manga" || type === "comic") { where.push("type = ?"); params.push(type); }
     if (status && typeof status === "string") { where.push("status = ?"); params.push(status); }
     if (q && typeof q === "string") {
       where.push("(LOWER(title) LIKE ? OR LOWER(description) LIKE ?)");
@@ -46,7 +45,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       params.push(tag);
     }
 
-    // series_folder and original_cover_path are server-side filesystem paths — never expose them.
     const rows = db.prepare(`
       SELECT s.id, s.slug, s.title, s.type, s.source, s.source_url, s.description,
              s.cover_path, s.status, s.one_shot, s.reading_mode,
@@ -76,13 +74,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       return;
     }
 
-    const { title, type, source, source_url, description, cover } = req.body ?? {};
-    if (!title || !type || !source || !source_url) {
+    const { title, source, source_url, description, cover } = req.body ?? {};
+    if (!title || !source || !source_url) {
       res.status(400).json({ message: "Missing field(s)" });
-      return;
-    }
-    if (type !== "manga" && type !== "comic") {
-      res.status(400).json({ message: "type must be 'manga' or 'comic'" });
       return;
     }
     if (typeof source_url !== "string") {
@@ -108,22 +102,18 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const slug = uniqueSlug(title);
     const cfg = db.prepare("SELECT value FROM site_config WHERE key = ?");
     const mangaDir = (cfg.get("MANGA_DIRECTORY") as { value: string } | undefined)?.value || "/Manga";
-    const comicDir = (cfg.get("COMICS_DIRECTORY") as { value: string } | undefined)?.value || "/Comics";
-    const folder = path.join(type === "comic" ? comicDir : mangaDir, sanitizeFsName(title));
+    const folder = path.join(mangaDir, sanitizeFsName(title));
 
     const info = db.prepare(`
       INSERT INTO series (slug, title, type, source, source_url, description, cover_path, status, series_folder)
-      VALUES (?, ?, ?, ?, ?, ?, '', 'unknown', ?)
-    `).run(slug, title, type, source, source_url, description || "", folder);
+      VALUES (?, ?, 'manga', ?, ?, ?, '', 'unknown', ?)
+    `).run(slug, title, source, source_url, description || "", folder);
 
     const seriesId = info.lastInsertRowid as number;
 
-    // Auto-queue.
     db.prepare("INSERT INTO download_queue (series_id, status) VALUES (?, 'queued')").run(seriesId);
 
-    // Persist cover hint immediately so the UI has something to show.
     if (cover && typeof cover === "string") {
-      // not downloading here — worker will fetch and save to disk.
       db.prepare("UPDATE series SET cover_path = ? WHERE id = ?").run(cover, seriesId);
     }
 

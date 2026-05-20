@@ -15,7 +15,6 @@ function getAllowedLocalDirs(): string[] {
   const cfg = getSiteConfig();
   return [
     cfg.MANGA_DIRECTORY || "/Manga",
-    cfg.COMICS_DIRECTORY || "/Comics",
     path.join(process.env.CONFIG_DIRECTORY || "/config", "covers"),
   ].map((d) => path.resolve(d));
 }

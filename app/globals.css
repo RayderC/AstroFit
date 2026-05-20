@@ -1899,7 +1899,6 @@ body > * { position: relative; z-index: 2; }
   font-family: var(--font-mono);
 }
 .type-manga  { color: var(--accent-magenta); background: rgba(244, 114, 182, 0.08); border: 1px solid rgba(244, 114, 182, 0.3); }
-.type-comic  { color: var(--accent-cyan);    background: rgba(34, 211, 238, 0.08);  border: 1px solid rgba(34, 211, 238, 0.3); }
 
 /* ===================== COMICORBIT: SERIES CARDS ===================== */
 
