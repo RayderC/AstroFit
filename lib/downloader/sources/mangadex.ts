@@ -52,6 +52,28 @@ function mangaIdFromUrl(url: string): string {
   return m[0];
 }
 
+// Use the dedicated /cover endpoint to get the actual volume cover, not a promo banner.
+// Sorted by volume asc so volume 1 (or the earliest) comes first.
+async function fetchBestCover(mangaId: string): Promise<string | undefined> {
+  const u = new URL(`${API}/cover`);
+  u.searchParams.append("manga[]", mangaId);
+  u.searchParams.set("order[volume]", "asc");
+  u.searchParams.set("limit", "10");
+  try {
+    const res = await fetch(u, { headers: UA, signal: AbortSignal.timeout(15_000) });
+    if (!res.ok) return undefined;
+    const json = (await res.json()) as {
+      data: { attributes: { fileName: string; volume: string | null } }[];
+    };
+    // Prefer a cover that has a volume number; fall back to first result.
+    const withVol = json.data.find((c) => c.attributes.volume != null);
+    const best = withVol ?? json.data[0];
+    return best?.attributes.fileName;
+  } catch {
+    return undefined;
+  }
+}
+
 export const mangadexSource: Source = {
   id: "mangadex",
   type: "manga",
@@ -68,7 +90,9 @@ export const mangadexSource: Source = {
     if (!res.ok) return [];
     const json = (await res.json()) as { data: MdManga[] };
     return (json.data || []).map((m) => {
-      const coverRel = m.relationships.find((r) => r.type === "cover_art");
+      // Prefer a cover_art relationship that has a volume set (avoids promo banners).
+      const coverRels = m.relationships.filter((r) => r.type === "cover_art");
+      const coverRel = coverRels.find((r) => r.attributes?.volume != null) ?? coverRels[0];
       const coverFile = coverRel?.attributes?.fileName as string | undefined;
       const cover = coverFile ? `${UPLOADS}/covers/${m.id}/${coverFile}.256.jpg` : undefined;
       return {
@@ -86,14 +110,14 @@ export const mangadexSource: Source = {
 
   async getMetadata(url: string): Promise<SeriesMetadata> {
     const id = mangaIdFromUrl(url);
-    const u = new URL(`${API}/manga/${id}`);
-    u.searchParams.append("includes[]", "cover_art");
-    const res = await fetch(u, { headers: UA, signal: AbortSignal.timeout(30_000) });
+    // Fetch manga info and the actual volume cover in parallel.
+    const [res, coverFile] = await Promise.all([
+      fetch(new URL(`${API}/manga/${id}`), { headers: UA, signal: AbortSignal.timeout(30_000) }),
+      fetchBestCover(id),
+    ]);
     if (!res.ok) throw new Error(`MangaDex metadata failed: ${res.status}`);
     const json = (await res.json()) as { data: MdManga };
     const m = json.data;
-    const coverRel = m.relationships.find((r) => r.type === "cover_art");
-    const coverFile = coverRel?.attributes?.fileName as string | undefined;
     return {
       title: en(m.attributes.title),
       description: en(m.attributes.description),
