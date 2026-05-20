@@ -18,7 +18,11 @@ function isSafeEntryName(name: string): boolean {
   return true;
 }
 
-export async function writeCbz(filePath: string, images: Buffer[]): Promise<void> {
+export async function writeCbz(
+  filePath: string,
+  images: Buffer[],
+  comicInfoXml?: string,
+): Promise<void> {
   await fs.promises.mkdir(path.dirname(filePath), { recursive: true });
   const tmpPath = `${filePath}.part`;
 
@@ -37,6 +41,9 @@ export async function writeCbz(filePath: string, images: Buffer[]): Promise<void
       const name = `${String(i + 1).padStart(pad, "0")}${ext}`;
       archive.append(buf, { name });
     });
+    if (comicInfoXml) {
+      archive.append(comicInfoXml, { name: "ComicInfo.xml" });
+    }
     archive.finalize();
   });
 

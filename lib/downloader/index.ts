@@ -7,6 +7,7 @@ import { isSafeExternalUrlResolved } from "../safeUrl";
 import { getSource } from "./sources";
 import { publish, remove } from "./progress";
 import { enqueueChapterNotification } from "../notificationOutbox";
+import { buildComicInfoXml } from "../comicinfo";
 import type { Source } from "./sources/types";
 
 const POLL_MS = 5000;
@@ -297,9 +298,28 @@ async function runJob(job: QueueRow): Promise<void> {
 
       const target = chapterFilePath(series, folder, ch.number);
 
+      // Pull the freshest series metadata for the ComicInfo we'll embed.
+      const cur = db.prepare(
+        "SELECT description, status, source_url FROM series WHERE id = ?"
+      ).get(s.id) as { description: string; status: string; source_url: string } | undefined;
+      const seriesTags = (db.prepare(
+        "SELECT tag FROM series_tags WHERE series_id = ?"
+      ).all(s.id) as { tag: string }[]).map((r) => r.tag);
+
+      const comicInfo = buildComicInfoXml({
+        series: series.title,
+        number: ch.number,
+        title: ch.title || undefined,
+        summary: cur?.description || undefined,
+        status: (cur?.status as "ongoing" | "completed" | "hiatus" | "unknown" | undefined) || undefined,
+        tags: seriesTags,
+        web: cur?.source_url || undefined,
+        oneShot: series.one_shot === 1,
+      });
+
       let finalTarget = target;
       if (payload.kind === "images") {
-        await writeCbz(target, payload.images);
+        await writeCbz(target, payload.images, comicInfo);
       } else {
         // archive: write to disk; if it's a .zip / .cbz / .cbr keep as-is, renamed.
         finalTarget = target.replace(/\.cbz$/, `.${payload.ext === "cbr" ? "cbr" : "cbz"}`);
