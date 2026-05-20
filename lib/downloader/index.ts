@@ -321,6 +321,10 @@ async function runJob(job: QueueRow): Promise<void> {
       `).run(s.id, ch.number, ch.title || "", finalTarget, pages);
 
       completed++;
+
+      // Brief pause between chapters so we don't saturate per-source rate limits
+      // (e.g. MangaDex at-home server allows ~40 lookups/min).
+      if (completed < todo.length) await sleep(1500);
     } catch (e) {
       if ((e as { name?: string }).name === "AbortError") {
         setStatus(job.id, { status: "paused", current_chapter: "cancelled" });

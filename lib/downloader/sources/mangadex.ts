@@ -166,16 +166,15 @@ export const mangadexSource: Source = {
   },
 
   async fetchChapter(ref, onProgress, signal): Promise<ChapterPayload> {
-    const combined = signal ? AbortSignal.any([signal, AbortSignal.timeout(30_000)]) : AbortSignal.timeout(30_000);
-    const res = await fetch(`${API}/at-home/server/${ref.externalId}`, { headers: UA, signal: combined });
-    if (!res.ok) throw new Error(`MangaDex at-home failed: ${res.status}`);
-    const json = (await res.json()) as { baseUrl: string; chapter: { hash: string; data: string[] } };
+    const atHomeRes = await fetchWithRetry(`${API}/at-home/server/${ref.externalId}`, signal);
+    if (!atHomeRes.ok) throw new Error(`MangaDex at-home failed: ${atHomeRes.status}`);
+    const json = (await atHomeRes.json()) as { baseUrl: string; chapter: { hash: string; data: string[] } };
     const urls = json.chapter.data.map((f) => `${json.baseUrl}/data/${json.chapter.hash}/${f}`);
 
     const total = urls.length;
     const buffers: Buffer[] = new Array(total);
     let done = 0;
-    const limit = pLimit(5);
+    const limit = pLimit(3);
 
     await Promise.all(urls.map((u, i) => limit(async () => {
       const r = await fetchWithRetry(u, signal);
@@ -188,7 +187,7 @@ export const mangadexSource: Source = {
   },
 };
 
-async function fetchWithRetry(url: string, signal?: AbortSignal, attempts = 3): Promise<Response> {
+async function fetchWithRetry(url: string, signal?: AbortSignal, attempts = 4): Promise<Response> {
   let lastErr: unknown;
   for (let i = 0; i < attempts; i++) {
     try {
@@ -196,12 +195,21 @@ async function fetchWithRetry(url: string, signal?: AbortSignal, attempts = 3): 
       const combined = signal ? AbortSignal.any([signal, perAttempt]) : perAttempt;
       const r = await fetch(url, { headers: UA, signal: combined });
       if (r.ok) return r;
+      if (r.status === 429) {
+        // Respect Retry-After if provided, otherwise back off 60s, 120s, 180s
+        const retryAfter = parseInt(r.headers.get("retry-after") || "0", 10);
+        const delay = retryAfter > 0 ? retryAfter * 1000 : 60_000 * (i + 1);
+        console.warn(`[mangadex] rate limited — waiting ${delay / 1000}s before retry`);
+        await new Promise((res) => setTimeout(res, delay));
+        lastErr = new Error(`HTTP 429`);
+        continue;
+      }
       lastErr = new Error(`HTTP ${r.status}`);
     } catch (e) {
       if ((e as { name?: string }).name === "AbortError") throw e;
       lastErr = e;
     }
-    await new Promise((res) => setTimeout(res, 500 * Math.pow(2, i)));
+    if (i < attempts - 1) await new Promise((res) => setTimeout(res, 1000 * Math.pow(2, i)));
   }
   throw lastErr instanceof Error ? lastErr : new Error("fetch failed");
 }
