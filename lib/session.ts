@@ -28,17 +28,16 @@ if (!sessionPassword || sessionPassword.length < 32) {
   );
 }
 
-// Default false so plain-HTTP local-network access works out of the box.
-// Set SESSION_COOKIE_SECURE=true if you terminate TLS in front of this app.
-// Set SESSION_COOKIE_SECURE=false explicitly to suppress the startup warning.
+// Secure by default in production — set SESSION_COOKIE_SECURE=false explicitly
+// for plain-HTTP local-network installs.
 const secureCookieEnv = process.env.SESSION_COOKIE_SECURE;
-const secureCookie = secureCookieEnv === "true";
+const secureCookie = secureCookieEnv == null ? !isDev : secureCookieEnv === "true";
 
-if (!isBuild && !isDev && !secureCookie && secureCookieEnv == null) {
+if (!isBuild && !isDev && !secureCookie) {
   console.warn(
-    "[session] WARNING: SESSION_COOKIE_SECURE is not set. " +
+    "[session] WARNING: SESSION_COOKIE_SECURE=false. " +
     "Session cookies will be sent over HTTP. " +
-    "Set SESSION_COOKIE_SECURE=true if serving over HTTPS, or SESSION_COOKIE_SECURE=false to silence this warning."
+    "Only use this on a trusted local network."
   );
 }
 

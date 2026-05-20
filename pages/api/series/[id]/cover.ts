@@ -1,6 +1,7 @@
 import type { NextApiRequest, NextApiResponse } from "next";
 import { getIronSession } from "iron-session";
 import { sessionOptions, User } from "../../../../lib/session";
+import { checkCsrf } from "../../../../lib/csrf";
 import db from "../../../../lib/db";
 import fs from "fs";
 import path from "path";
@@ -29,6 +30,10 @@ function deleteCustomCoverFiles(id: number) {
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   const session = await getIronSession<{ user?: User }>(req, res, sessionOptions);
   if (!session.user?.isAdmin) { res.status(403).json({ message: "Forbidden" }); return; }
+
+  if (req.method === "POST" || req.method === "DELETE") {
+    if (!checkCsrf(req)) { res.status(403).json({ message: "Forbidden" }); return; }
+  }
 
   const id = Number(req.query.id);
   if (!Number.isFinite(id)) { res.status(400).json({ message: "Invalid id" }); return; }

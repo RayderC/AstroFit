@@ -7,6 +7,25 @@ import { checkCsrf } from "../../../lib/csrf";
 
 export const config = { api: { bodyParser: { sizeLimit: "8kb" } } };
 
+// Only accept push endpoints from real browser push services. Without this an
+// attacker could register their own URL and the server would make VAPID-signed
+// POSTs to it on every push event (SSRF + signed-request abuse).
+const ALLOWED_PUSH_HOSTS = [
+  /\.googleapis\.com$/,                 // FCM
+  /\.push\.services\.mozilla\.com$/,    // Firefox Autopush
+  /^web\.push\.apple\.com$/,            // Safari / iOS
+  /\.notify\.windows\.com$/,            // Edge legacy
+  /\.windows\.com$/,                    // Edge fallback
+];
+
+function isAllowedPushEndpoint(endpoint: string): boolean {
+  let url: URL;
+  try { url = new URL(endpoint); } catch { return false; }
+  if (url.protocol !== "https:") return false;
+  const host = url.hostname.toLowerCase();
+  return ALLOWED_PUSH_HOSTS.some((re) => re.test(host));
+}
+
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   const session = await getIronSession<{ user?: User }>(req, res, sessionOptions);
   if (!session.user) { res.status(401).json({ message: "Login required" }); return; }
@@ -29,6 +48,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     }
     if (typeof endpoint !== "string" || endpoint.length > 2000) {
       res.status(400).json({ message: "Invalid endpoint" });
+      return;
+    }
+    if (!isAllowedPushEndpoint(endpoint)) {
+      res.status(400).json({ message: "Unsupported push service" });
       return;
     }
     db.prepare(`

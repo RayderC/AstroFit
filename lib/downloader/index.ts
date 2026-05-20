@@ -3,6 +3,7 @@ import fs from "fs";
 import db, { getSiteConfig } from "../db";
 import { writeCbz, countCbzPages } from "../cbz";
 import { sanitizeFsName } from "../url";
+import { isSafeExternalUrlResolved } from "../safeUrl";
 import { getSource } from "./sources";
 import { publish, remove } from "./progress";
 import { sendPushToAll } from "../webpush";
@@ -135,6 +136,10 @@ async function downloadCoverIfMissing(s: SeriesRow, folder: string, cover?: stri
     }
     return;
   }
+  if (!(await isSafeExternalUrlResolved(cover))) {
+    console.warn(`[downloader] refusing to fetch cover from unsafe URL: ${cover}`);
+    return;
+  }
   try {
     const r = await fetch(cover, {
       headers: {
@@ -142,6 +147,7 @@ async function downloadCoverIfMissing(s: SeriesRow, folder: string, cover?: stri
         "Accept": "image/avif,image/webp,image/apng,image/*,*/*;q=0.8",
       },
       signal: AbortSignal.timeout(15_000),
+      redirect: "follow",
     });
     if (!r.ok) return;
     const ct = (r.headers.get("content-type") || "").split(";")[0].trim();

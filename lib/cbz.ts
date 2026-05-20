@@ -5,6 +5,10 @@ import yauzl, { ZipFile, Entry } from "yauzl";
 
 const IMG_EXT = /\.(jpg|jpeg|png|webp|gif)$/i;
 
+// Hard caps to defend against malicious archives downloaded from third-party sources.
+const MAX_ENTRIES_PER_CBZ = 2000;       // a single chapter listing more than this is suspicious
+const MAX_DECOMPRESSED_BYTES = 50 * 1024 * 1024; // 50 MB per page — generous, but kills zip bombs
+
 // Reject ZIP entries that could escape the extraction directory via path traversal.
 function isSafeEntryName(name: string): boolean {
   if (path.isAbsolute(name)) return false;
@@ -56,8 +60,17 @@ export function listCbzImages(cbzPath: string): Promise<CbzEntry[]> {
     yauzl.open(cbzPath, { lazyEntries: true }, (err, zip) => {
       if (err || !zip) return reject(err || new Error("zip open failed"));
       const entries: string[] = [];
+      let truncated = false;
       zip.on("error", reject);
       zip.on("entry", (entry: Entry) => {
+        if (entries.length >= MAX_ENTRIES_PER_CBZ) {
+          if (!truncated) {
+            truncated = true;
+            console.warn(`[cbz] entry list truncated at ${MAX_ENTRIES_PER_CBZ} for ${cbzPath}`);
+          }
+          zip.readEntry();
+          return;
+        }
         if (!entry.fileName.endsWith("/") && IMG_EXT.test(entry.fileName) && isSafeEntryName(entry.fileName)) {
           entries.push(entry.fileName);
         }
@@ -92,9 +105,24 @@ export async function streamCbzImage(cbzPath: string, pageIndex: number): Promis
         zip.openReadStream(entry, (e, stream) => {
           if (e || !stream) return reject(e || new Error("read stream failed"));
           const chunks: Buffer[] = [];
-          stream.on("data", (c: Buffer) => chunks.push(c));
-          stream.on("end", () => resolve({ buffer: Buffer.concat(chunks), name: entry.fileName }));
-          stream.on("error", reject);
+          let total = 0;
+          let aborted = false;
+          stream.on("data", (c: Buffer) => {
+            if (aborted) return;
+            total += c.length;
+            if (total > MAX_DECOMPRESSED_BYTES) {
+              aborted = true;
+              stream.destroy();
+              reject(new Error(`CBZ page exceeds ${MAX_DECOMPRESSED_BYTES} bytes`));
+              return;
+            }
+            chunks.push(c);
+          });
+          stream.on("end", () => {
+            if (aborted) return;
+            resolve({ buffer: Buffer.concat(chunks), name: entry.fileName });
+          });
+          stream.on("error", (err) => { if (!aborted) reject(err); });
         });
       });
       zip.on("end", () => reject(new Error("entry not found")));
