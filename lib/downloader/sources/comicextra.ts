@@ -126,7 +126,7 @@ export const comicextraSource: Source = {
       if (t) tags.push(t);
     });
 
-    return { title, description: description || undefined, cover: cover || undefined, status, tags, oneShot: false };
+    return { title, description: description || "", cover: cover || undefined, status, tags, oneShot: false };
   },
 
   async listChapters(url: string): Promise<ChapterRef[]> {
