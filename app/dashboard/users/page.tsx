@@ -9,6 +9,8 @@ type AdminUser = {
   created_at: string;
 };
 
+type NotifyUser = { id: number; username: string; has_push: number };
+
 export default function UsersPage() {
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [loading, setLoading] = useState(true);
@@ -23,15 +25,62 @@ export default function UsersPage() {
   const [editSaving, setEditSaving] = useState(false);
   const [editError, setEditError] = useState("");
 
+  // Notification panel
+  const [notifyUsers, setNotifyUsers] = useState<NotifyUser[]>([]);
+  const [notifySelected, setNotifySelected] = useState<Set<number>>(new Set());
+  const [notifyTitle, setNotifyTitle] = useState("");
+  const [notifyBody, setNotifyBody] = useState("");
+  const [notifySending, setNotifySending] = useState(false);
+  const [notifyResult, setNotifyResult] = useState<{ text: string; ok: boolean } | null>(null);
+
   function load() {
     setLoading(true);
     fetch("/api/users")
       .then((r) => r.json())
       .then((data) => { setUsers(Array.isArray(data) ? data : []); setLoading(false); })
       .catch(() => setLoading(false));
+    fetch("/api/admin/notify")
+      .then((r) => r.ok ? r.json() : [])
+      .then((data) => setNotifyUsers(Array.isArray(data) ? data : []))
+      .catch(() => {});
   }
 
   useEffect(load, []);
+
+  function toggleNotifyUser(id: number) {
+    setNotifySelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  }
+
+  function selectAllWithPush() {
+    setNotifySelected(new Set(notifyUsers.filter((u) => u.has_push).map((u) => u.id)));
+  }
+
+  async function sendNotification(e: React.FormEvent) {
+    e.preventDefault();
+    if (notifySelected.size === 0) { setNotifyResult({ text: "Select at least one user", ok: false }); return; }
+    setNotifySending(true);
+    setNotifyResult(null);
+    try {
+      const r = await fetch("/api/admin/notify", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userIds: Array.from(notifySelected), title: notifyTitle, body: notifyBody }),
+      });
+      const data = await r.json();
+      if (r.ok) {
+        setNotifyResult({ text: `Sent to ${data.sent} device(s). ${data.noSub > 0 ? `${data.noSub} user(s) have no subscription.` : ""}`, ok: true });
+      } else {
+        setNotifyResult({ text: data.message || "Failed", ok: false });
+      }
+    } catch {
+      setNotifyResult({ text: "Network error", ok: false });
+    }
+    setNotifySending(false);
+  }
 
   function startEdit(u: AdminUser) {
     setEditingId(u.id);
@@ -137,6 +186,94 @@ export default function UsersPage() {
 
           <button type="submit" className="btn btn-primary btn-sm" disabled={creating} style={{ alignSelf: "flex-start" }}>
             {creating ? "Creating…" : "Create Account"}
+          </button>
+        </form>
+      </div>
+
+      {/* Push notification panel */}
+      <div className="stat-card" style={{ padding: "24px", marginBottom: "24px" }}>
+        <h2 style={{ fontSize: "18px", marginBottom: "4px" }}>Send Test Notification</h2>
+        <p style={{ fontSize: "12px", color: "var(--text-subtle)", marginBottom: "16px" }}>
+          Only users who have enabled notifications in their profile will receive it.
+        </p>
+        <form onSubmit={sendNotification} style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
+          {/* User selector */}
+          <div>
+            <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "10px" }}>
+              <span style={{ fontSize: "12px", color: "var(--text-subtle)", textTransform: "uppercase", letterSpacing: "0.06em" }}>Recipients</span>
+              <button type="button" className="btn btn-ghost btn-sm" style={{ fontSize: "11px", padding: "2px 8px" }} onClick={selectAllWithPush}>
+                All subscribed
+              </button>
+              <button type="button" className="btn btn-ghost btn-sm" style={{ fontSize: "11px", padding: "2px 8px" }} onClick={() => setNotifySelected(new Set())}>
+                Clear
+              </button>
+            </div>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: "8px" }}>
+              {notifyUsers.map((u) => {
+                const selected = notifySelected.has(u.id);
+                return (
+                  <button
+                    key={u.id}
+                    type="button"
+                    onClick={() => toggleNotifyUser(u.id)}
+                    style={{
+                      padding: "5px 12px",
+                      borderRadius: "20px",
+                      fontSize: "13px",
+                      fontWeight: 600,
+                      cursor: "pointer",
+                      border: `1px solid ${selected ? "var(--accent-cyan)" : "var(--border)"}`,
+                      background: selected ? "rgba(34,211,238,0.12)" : "var(--surface)",
+                      color: selected ? "var(--accent-cyan)" : u.has_push ? "var(--text)" : "var(--text-subtle)",
+                      opacity: u.has_push ? 1 : 0.5,
+                    }}
+                    title={u.has_push ? "Has push subscription" : "No push subscription — won't receive notifications"}
+                  >
+                    {u.has_push ? "◉" : "○"} {u.username}
+                  </button>
+                );
+              })}
+              {notifyUsers.length === 0 && <p style={{ fontSize: "13px", color: "var(--text-subtle)" }}>No users found.</p>}
+            </div>
+          </div>
+
+          {/* Message */}
+          <div style={{ display: "flex", gap: "12px", flexWrap: "wrap" }}>
+            <div style={{ flex: "1", minWidth: "180px" }}>
+              <label className="form-label" style={{ marginBottom: "6px" }}>Title <span style={{ color: "var(--text-subtle)", fontWeight: 400 }}>(optional)</span></label>
+              <input
+                className="form-input"
+                value={notifyTitle}
+                onChange={(e) => setNotifyTitle(e.target.value)}
+                placeholder="ComicOrbit"
+                maxLength={100}
+              />
+            </div>
+            <div style={{ flex: "2", minWidth: "220px" }}>
+              <label className="form-label" style={{ marginBottom: "6px" }}>Message <span style={{ color: "var(--text-subtle)", fontWeight: 400 }}>(optional)</span></label>
+              <input
+                className="form-input"
+                value={notifyBody}
+                onChange={(e) => setNotifyBody(e.target.value)}
+                placeholder="Test notification from admin"
+                maxLength={200}
+              />
+            </div>
+          </div>
+
+          {notifyResult && (
+            <p style={{ fontSize: "13px", color: notifyResult.ok ? "var(--success)" : "var(--danger)" }}>
+              {notifyResult.text}
+            </p>
+          )}
+
+          <button
+            type="submit"
+            className="btn btn-primary btn-sm"
+            disabled={notifySending || notifySelected.size === 0}
+            style={{ alignSelf: "flex-start" }}
+          >
+            {notifySending ? "Sending…" : `Send to ${notifySelected.size} user${notifySelected.size !== 1 ? "s" : ""}`}
           </button>
         </form>
       </div>

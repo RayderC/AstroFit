@@ -34,6 +34,8 @@ export async function sendPushToUser(
   userId: number,
   payload: { title: string; body: string; url?: string },
 ): Promise<void> {
+  ensureVapidKeys(); // idempotent — safe to call every time
+
   const subs = db.prepare(
     "SELECT endpoint, p256dh, auth FROM push_subscriptions WHERE user_id = ?",
   ).all(userId) as { endpoint: string; p256dh: string; auth: string }[];
