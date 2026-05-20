@@ -20,6 +20,7 @@
     "p-limit": "^7.1.0",
     "react": "19.2.3",
     "react-dom": "19.2.3",
+    "web-push": "^3.6.7",
     "yauzl": "^3.3.0"
   },
   "devDependencies": {
@@ -28,6 +29,7 @@
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "@types/web-push": "^3.6.4",
     "@types/yauzl": "^2.10.3",
     "eslint": "^9",
     "eslint-config-next": "16.1.1",

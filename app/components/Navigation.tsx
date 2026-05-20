@@ -43,7 +43,10 @@ export default function Navigation() {
   const navLinks = [
     { href: "/", label: "Home", active: pathname === "/" },
     { href: "/library", label: "Library", active: pathname.startsWith("/library") },
-    ...(isLoggedIn ? [{ href: "/favorites", label: "Favorites", active: pathname.startsWith("/favorites") }] : []),
+    ...(isLoggedIn ? [
+      { href: "/favorites", label: "Favorites", active: pathname.startsWith("/favorites") },
+      { href: "/stats", label: "Stats", active: pathname.startsWith("/stats") },
+    ] : []),
     ...(isAdmin ? [{ href: "/dashboard", label: "Dashboard", active: pathname.startsWith("/dashboard") }] : []),
   ];
 

@@ -4,12 +4,16 @@ export async function register() {
 
   const { runMigrationIfNeeded, backfillPageCounts } = await import("./lib/migration");
   const { startWorker, scanAllSeries } = await import("./lib/downloader");
+  const { ensureVapidKeys } = await import("./lib/webpush");
 
   try {
     runMigrationIfNeeded();
   } catch (e) {
     console.error("[instrumentation] migration error:", e);
   }
+
+  // Generate VAPID keys once and persist them in site_config for push notifications.
+  try { ensureVapidKeys(); } catch (e) { console.warn("[instrumentation] vapid:", e); }
 
   // Backfill page counts in the background; failures here are non-fatal.
   backfillPageCounts().catch((e) => console.warn("[instrumentation] backfill:", e));

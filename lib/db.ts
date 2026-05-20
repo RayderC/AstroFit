@@ -124,6 +124,18 @@ const migrations = [
   `ALTER TABLE series ADD COLUMN original_cover_path TEXT NOT NULL DEFAULT ''`,
   `ALTER TABLE download_queue ADD COLUMN current_chapter TEXT NOT NULL DEFAULT ''`,
   `ALTER TABLE download_queue ADD COLUMN updated_at TEXT NOT NULL DEFAULT (datetime('now'))`,
+  `ALTER TABLE users ADD COLUMN anilist_token TEXT NOT NULL DEFAULT ''`,
+  `ALTER TABLE series ADD COLUMN anilist_id INTEGER`,
+  `CREATE TABLE IF NOT EXISTS push_subscriptions (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL,
+    endpoint TEXT NOT NULL,
+    p256dh TEXT NOT NULL,
+    auth TEXT NOT NULL,
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    UNIQUE(user_id, endpoint),
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+  )`,
 ];
 
 if (!isBuildPhase) {

@@ -31,6 +31,9 @@ export interface SeriesRow {
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method === "GET") {
+    const session = await getIronSession<{ user?: User }>(req, res, sessionOptions);
+    if (!session.user) { res.status(401).json({ message: "Login required" }); return; }
+
     const { status, q, tag } = req.query;
     const where: string[] = [];
     const params: unknown[] = [];
@@ -114,6 +117,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     db.prepare("INSERT INTO download_queue (series_id, status) VALUES (?, 'queued')").run(seriesId);
 
     if (cover && typeof cover === "string") {
+      if (!isSafeExternalUrl(cover)) {
+        res.status(400).json({ message: "cover URL points to a disallowed address" });
+        return;
+      }
       db.prepare("UPDATE series SET cover_path = ? WHERE id = ?").run(cover, seriesId);
     }
 

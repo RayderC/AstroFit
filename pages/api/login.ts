@@ -12,10 +12,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return;
   }
 
-  // 10 attempts per minute per IP
-  const ip = (req.headers["x-forwarded-for"] as string | undefined)?.split(",")[0].trim()
-    || req.socket.remoteAddress
-    || "unknown";
+  // 10 attempts per minute per IP — validate forwarded-for to prevent header spoofing.
+  const forwarded = (req.headers["x-forwarded-for"] as string | undefined)?.split(",")[0]?.trim() ?? "";
+  const validIp = /^(?:\d{1,3}\.){3}\d{1,3}$|^[0-9a-f:]+$/i.test(forwarded) ? forwarded : null;
+  const ip = validIp || req.socket.remoteAddress || "unknown";
   if (!checkRateLimit(`login:${ip}`, 10, 60_000)) {
     res.status(429).json({ message: "Too many login attempts. Try again in a minute." });
     return;

@@ -5,6 +5,7 @@ import { writeCbz, countCbzPages } from "../cbz";
 import { sanitizeFsName } from "../url";
 import { getSource } from "./sources";
 import { publish, remove } from "./progress";
+import { sendPushToAll } from "../webpush";
 import type { Source } from "./sources/types";
 
 const POLL_MS = 5000;
@@ -317,6 +318,13 @@ async function runJob(job: QueueRow): Promise<void> {
         INSERT OR REPLACE INTO chapters (series_id, number, title, file_path, page_count, downloaded_at)
         VALUES (?, ?, ?, ?, ?, datetime('now'))
       `).run(s.id, ch.number, ch.title || "", finalTarget, pages);
+
+      // Notify all subscribed users that a new chapter is available.
+      sendPushToAll({
+        title: series.title,
+        body: series.one_shot === 1 ? "Now available in your library" : `Chapter ${ch.number} downloaded`,
+        url: `/library/${s.id}`,
+      }).catch(() => {});
 
       completed++;
 

@@ -2,6 +2,7 @@ import type { NextApiRequest, NextApiResponse } from "next";
 import db from "../../../lib/db";
 import { getIronSession } from "iron-session";
 import { sessionOptions, User } from "../../../lib/session";
+import { syncAnilistProgress } from "../../../lib/anilist";
 
 export const config = { api: { bodyParser: { sizeLimit: "16kb" } } };
 
@@ -42,6 +43,15 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         completed = excluded.completed,
         updated_at = datetime('now')
     `).run(userId, ch.series_id, cId, p, completed ? 1 : 0);
+
+    // Fire-and-forget AniList sync when a chapter is completed.
+    if (completed) {
+      const chaptersRead = (db.prepare(
+        "SELECT COUNT(*) as c FROM read_progress WHERE user_id = ? AND series_id = ? AND completed = 1"
+      ).get(userId, ch.series_id) as { c: number }).c;
+      syncAnilistProgress(userId, ch.series_id, chaptersRead).catch(() => {});
+    }
+
     res.json({ ok: true });
     return;
   }

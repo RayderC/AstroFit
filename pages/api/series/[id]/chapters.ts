@@ -16,6 +16,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
 
   const session = await getIronSession<{ user?: User }>(req, res, sessionOptions);
+  if (!session.user) { res.status(401).json({ message: "Login required" }); return; }
 
   const rows = db.prepare(`
     SELECT id, series_id, number, title, page_count, downloaded_at
