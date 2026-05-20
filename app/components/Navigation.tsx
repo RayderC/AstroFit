@@ -98,7 +98,6 @@ export default function Navigation() {
       <div className={`nav-mobile-drawer${drawerOpen ? " open" : ""}`}>
         <div className="nav-mobile-drawer-header">
           <Link href="/" className="nav-logo">{siteName}</Link>
-          <button className="nav-mobile-close" onClick={() => setDrawerOpen(false)} aria-label="Close menu">✕</button>
         </div>
 
         <nav className="nav-mobile-links">

@@ -11,20 +11,37 @@ interface Props {
   initialPage: number;
   nextChapterId: number | null;
   prevChapterId: number | null;
+  prevChapterPageCount: number | null;
   readingMode: "ltr" | "rtl" | "webtoon";
 }
 
 export default function ReaderViewer({
-  seriesId, seriesTitle, chapter, initialPage, nextChapterId, prevChapterId, readingMode,
+  seriesId, seriesTitle, chapter, initialPage, nextChapterId, prevChapterId, prevChapterPageCount, readingMode,
 }: Props) {
   const router = useRouter();
   const [page, setPage] = useState(Math.max(0, Math.min(initialPage, chapter.page_count - 1)));
   const [topbarVisible, setTopbarVisible] = useState(true);
+  const [pendingNav, setPendingNav] = useState<"next" | "prev" | null>(null);
+  const pendingNavRef = useRef<"next" | "prev" | null>(null);
+  const pendingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const total = Math.max(1, chapter.page_count);
   const lastSaved = useRef(-1);
   const preloadRef = useRef<HTMLImageElement | null>(null);
   const pageEls = useRef<(HTMLImageElement | null)[]>([]);
   const webtoonViewportRef = useRef<HTMLDivElement>(null);
+
+  const setPending = useCallback((nav: "next" | "prev" | null) => {
+    pendingNavRef.current = nav;
+    setPendingNav(nav);
+    if (pendingTimerRef.current) clearTimeout(pendingTimerRef.current);
+    pendingTimerRef.current = null;
+    if (nav !== null) {
+      pendingTimerRef.current = setTimeout(() => {
+        pendingNavRef.current = null;
+        setPendingNav(null);
+      }, 2000);
+    }
+  }, []);
 
   const saveProgress = useCallback(async (p: number, completed: boolean) => {
     if (!completed && lastSaved.current === p) return;
@@ -43,14 +60,36 @@ export default function ReaderViewer({
   }, [page, total, saveProgress]);
 
   const goPrev = useCallback(() => {
-    if (page > 0) setPage((p) => p - 1);
-    else if (prevChapterId) router.push(`/library/${seriesId}/read/${prevChapterId}`);
-  }, [page, prevChapterId, router, seriesId]);
+    if (page > 0) {
+      setPending(null);
+      setPage((p) => p - 1);
+    } else if (prevChapterId) {
+      if (pendingNavRef.current === "prev") {
+        setPending(null);
+        const lastPage = prevChapterPageCount && prevChapterPageCount > 1 ? prevChapterPageCount - 1 : 0;
+        const url = lastPage > 0
+          ? `/library/${seriesId}/read/${prevChapterId}?page=${lastPage}`
+          : `/library/${seriesId}/read/${prevChapterId}`;
+        router.push(url);
+      } else {
+        setPending("prev");
+      }
+    }
+  }, [page, prevChapterId, prevChapterPageCount, router, seriesId, setPending]);
 
   const goNext = useCallback(() => {
-    if (page < total - 1) setPage((p) => p + 1);
-    else if (nextChapterId) router.push(`/library/${seriesId}/read/${nextChapterId}`);
-  }, [page, total, nextChapterId, router, seriesId]);
+    if (page < total - 1) {
+      setPending(null);
+      setPage((p) => p + 1);
+    } else if (nextChapterId) {
+      if (pendingNavRef.current === "next") {
+        setPending(null);
+        router.push(`/library/${seriesId}/read/${nextChapterId}`);
+      } else {
+        setPending("next");
+      }
+    }
+  }, [page, total, nextChapterId, router, seriesId, setPending]);
 
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
@@ -138,6 +177,30 @@ export default function ReaderViewer({
   const trackClass = `reader-progress-track${topbarVisible ? "" : " reader-progress-track-hidden"}`;
   const topbarClass = `reader-topbar${topbarVisible ? "" : " reader-topbar-hidden"}`;
 
+  const chapterConfirmOverlay = pendingNav ? (
+    <div style={{
+      position: "fixed",
+      bottom: "90px",
+      left: "50%",
+      transform: "translateX(-50%)",
+      background: "rgba(10, 10, 18, 0.95)",
+      border: "2px solid #22d3ee",
+      color: "#fff",
+      padding: "14px 28px",
+      borderRadius: "10px",
+      fontSize: "15px",
+      fontWeight: "700",
+      zIndex: 200,
+      boxShadow: "0 0 24px rgba(34, 211, 238, 0.6)",
+      pointerEvents: "none",
+      textAlign: "center",
+      letterSpacing: "0.03em",
+      whiteSpace: "nowrap",
+    }}>
+      {pendingNav === "next" ? "Tap again for Next Chapter →" : "← Tap again for Previous Chapter"}
+    </div>
+  ) : null;
+
   const progressBar = (
     <div className={trackClass}>
       <span className="reader-slider-label">{page + 1}</span>
@@ -166,6 +229,7 @@ export default function ReaderViewer({
     return (
       <div className="reader-page">
         {topBar}
+        {chapterConfirmOverlay}
         <div
           ref={webtoonViewportRef}
           className="reader-viewport reader-viewport-webtoon"
@@ -196,6 +260,7 @@ export default function ReaderViewer({
   return (
     <div className="reader-page">
       {topBar}
+      {chapterConfirmOverlay}
       <div className="reader-viewport" onClick={handleViewportClick}>
         <img
           src={`/api/read/${chapter.id}/page/${page}`}

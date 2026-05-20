@@ -2622,6 +2622,11 @@ body > * { position: relative; z-index: 2; }
   z-index: 2;
 }
 
+.shelf-card-cover-link {
+  display: block;
+  flex-shrink: 0;
+}
+
 .shelf-card-cover {
   aspect-ratio: 2 / 3;
   overflow: hidden;
@@ -2703,12 +2708,17 @@ body > * { position: relative; z-index: 2; }
   font-size: 12px;
   font-weight: 700;
   color: var(--text);
+  text-decoration: none;
   line-height: 1.3;
   display: -webkit-box;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
   margin-bottom: 3px;
+}
+.shelf-card-title:hover {
+  color: var(--accent-cyan);
+  text-decoration: underline;
 }
 .shelf-card-sub {
   font-size: 10px;

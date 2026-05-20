@@ -196,8 +196,9 @@ export const mangafreakSource: Source = {
         const arrayData = $("#arraydata").text().trim();
         if (arrayData) {
           const allSrcs = arrayData.split("|").map((s) => s.trim()).filter(isPageImage);
-          // Limit to officialPageCount if known; the remainder are promotional images
-          const cap = officialPageCount > 0 ? officialPageCount : allSrcs.length;
+          // +1 buffer guards against MangaFreak using 0-indexed option values in their select.
+          // The trailing landscape filter later removes any extra promotional image.
+          const cap = officialPageCount > 0 ? officialPageCount + 1 : allSrcs.length;
           allSrcs.slice(0, cap).forEach((src) => {
             const abs = absUrl(src);
             if (!urls.includes(abs)) urls.push(abs);
@@ -240,24 +241,32 @@ export const mangafreakSource: Source = {
 
     // Strategy 2: probe images.mangafreak.me with HEAD
     // Chapter URLs like /Read1_Series_Name_3 — strip the "Read{n}_" prefix for the CDN slug.
-    // If we have an official count, stop there so promotional pages are never probed.
+    // Add +1 buffer to officialPageCount to guard against off-by-one in MangaFreak's select.
     if (urls.length === 0) {
       const chapterSeg = slugFromUrl(ref.externalId.replace(/\/$/, ""));
       const seriesSlug = chapterSeg.replace(/^read\d+_/, "").replace(/_\d+(\.\d+)?$/, "");
       const ch = ref.number % 1 === 0 ? String(Math.floor(ref.number)) : String(ref.number);
-      const maxProbe = officialPageCount > 0 ? officialPageCount : 200;
+      const maxProbe = officialPageCount > 0 ? officialPageCount + 1 : 200;
       console.log(`[mangafreak] probing ${seriesSlug} ch${ch} (max ${maxProbe})`);
       for (let n = 1; n <= maxProbe; n++) {
         const u = `https://images.mangafreak.me/mangas/${seriesSlug}/${seriesSlug}_${ch}/${seriesSlug}_${ch}_${n}.jpg`;
-        try {
-          const head = await fetch(u, { method: "HEAD", headers: UA, signal });
-          if (!head.ok) break;
-          const ct = head.headers.get("content-type") || "";
-          if (!ct.startsWith("image/")) break;
-          urls.push(u);
-        } catch {
-          break;
+        let pageOk = false;
+        for (let attempt = 0; attempt < 3; attempt++) {
+          try {
+            const head = await fetch(u, { method: "HEAD", headers: UA, signal });
+            if (head.status === 404) break; // Definitive miss — no retry
+            if (head.ok && (head.headers.get("content-type") || "").startsWith("image/")) {
+              pageOk = true;
+              break;
+            }
+            break;
+          } catch (e) {
+            if ((e as { name?: string }).name === "AbortError") throw e;
+            if (attempt < 2) await new Promise((r) => setTimeout(r, 300));
+          }
         }
+        if (!pageOk) break;
+        urls.push(u);
       }
     }
 
@@ -275,12 +284,12 @@ export const mangafreakSource: Source = {
       onProgress(done, urls.length);
     })));
 
-    // Final safety: drop any trailing landscape images (promotional banners).
-    // Real manga pages are always portrait (h ≥ w).
+    // Final safety: drop trailing promotional banners (very wide landscape images, aspect > 2.5:1).
+    // Use a strict ratio so real splash pages / wide manga panels are kept.
     const filtered = [...buffers];
-    for (let i = 0; i < 5 && filtered.length > 1; i++) {
+    for (let i = 0; i < 3 && filtered.length > 1; i++) {
       const dims = getImageDimensions(filtered[filtered.length - 1]);
-      if (dims && dims.w > dims.h) filtered.pop();
+      if (dims && dims.w > dims.h * 2.5) filtered.pop();
       else break;
     }
 

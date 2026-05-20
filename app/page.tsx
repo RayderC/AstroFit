@@ -65,29 +65,32 @@ function ShelfCard({
   progressPct?: number;
 }) {
   const coverSrc = `/api/cover/${seriesId}${coverUpdatedAt ? `?v=${encodeURIComponent(coverUpdatedAt)}` : ""}`;
+  const seriesHref = `/library/${seriesId}`;
   return (
-    <Link href={href} className="shelf-card">
-      <div className="shelf-card-cover">
-        {hasCover ? (
-          <img src={coverSrc} alt={title} loading="lazy" />
-        ) : (
-          <div className="shelf-card-placeholder">◈</div>
-        )}
-        {progressPct !== undefined && (
-          <div className="shelf-card-progress">
-            <div className="shelf-card-progress-fill" style={{ width: `${progressPct}%` }} />
+    <div className="shelf-card">
+      <Link href={href} className="shelf-card-cover-link">
+        <div className="shelf-card-cover">
+          {hasCover ? (
+            <img src={coverSrc} alt={title} loading="lazy" />
+          ) : (
+            <div className="shelf-card-placeholder">◈</div>
+          )}
+          {progressPct !== undefined && (
+            <div className="shelf-card-progress">
+              <div className="shelf-card-progress-fill" style={{ width: `${progressPct}%` }} />
+            </div>
+          )}
+          <div className="shelf-card-overlay">
+            <div className="shelf-card-overlay-title">{title}</div>
+            {subtitle && <div className="shelf-card-overlay-sub">{subtitle}</div>}
           </div>
-        )}
-        <div className="shelf-card-overlay">
-          <div className="shelf-card-overlay-title">{title}</div>
-          {subtitle && <div className="shelf-card-overlay-sub">{subtitle}</div>}
         </div>
-      </div>
+      </Link>
       <div className="shelf-card-info">
-        <div className="shelf-card-title">{title}</div>
+        <Link href={seriesHref} className="shelf-card-title">{title}</Link>
         {subtitle && <div className="shelf-card-sub">{subtitle}</div>}
       </div>
-    </Link>
+    </div>
   );
 }
 

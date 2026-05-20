@@ -44,8 +44,8 @@ export default async function ReaderPage({
     "SELECT id FROM chapters WHERE series_id = ? AND number > ? ORDER BY number ASC LIMIT 1"
   ).get(seriesId, chapter.number) as { id: number } | undefined;
   const prev = db.prepare(
-    "SELECT id FROM chapters WHERE series_id = ? AND number < ? ORDER BY number DESC LIMIT 1"
-  ).get(seriesId, chapter.number) as { id: number } | undefined;
+    "SELECT id, page_count FROM chapters WHERE series_id = ? AND number < ? ORDER BY number DESC LIMIT 1"
+  ).get(seriesId, chapter.number) as { id: number; page_count: number } | undefined;
 
   const initialPage = Math.max(0, Math.min(Number(page || 0) || 0, Math.max(0, chapter.page_count - 1)));
 
@@ -61,6 +61,7 @@ export default async function ReaderPage({
       initialPage={initialPage}
       nextChapterId={next?.id ?? null}
       prevChapterId={prev?.id ?? null}
+      prevChapterPageCount={prev?.page_count ?? null}
       readingMode={readingMode}
     />
   );
