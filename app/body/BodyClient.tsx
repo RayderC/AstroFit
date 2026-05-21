@@ -167,18 +167,35 @@ export default function BodyClient({ metrics, unit }: { metrics: BodyMetric[]; u
       {/* Weight chart */}
       {chartData.length > 1 && (
         <div className="chart-card" style={{ marginBottom: 24 }}>
-          <div style={{ fontSize: 15, fontWeight: 700, marginBottom: 16 }}>Weight Trend</div>
-          <div style={{ display: "flex", alignItems: "flex-end", gap: 3, height: 80 }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 14 }}>
+            <div style={{ fontSize: 15, fontWeight: 700 }}>Weight Trend</div>
+            <div style={{ fontSize: 12, fontFamily: "var(--font-mono)", color: "var(--text-muted)" }}>
+              {displayWeight(minW)} – {displayWeight(maxW)}
+            </div>
+          </div>
+          <div style={{ display: "flex", alignItems: "flex-end", gap: 3, height: 100 }}>
             {chartData.map((m, i) => {
-              const pct = 20 + ((m.weight_kg! - minW) / wRange) * 75;
+              const pct = 15 + ((m.weight_kg! - minW) / wRange) * 80;
+              const isLatest = i === chartData.length - 1;
               return (
-                <div key={i} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", height: "100%" }} title={displayWeight(m.weight_kg)}>
+                <div key={i} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", height: "100%", position: "relative" }} title={`${displayWeight(m.weight_kg)} · ${m.recorded_at.slice(0, 10)}`}>
                   <div style={{ flex: 1, display: "flex", alignItems: "flex-end", width: "100%" }}>
-                    <div style={{ width: "100%", height: `${pct}%`, background: "var(--accent-cyan)", borderRadius: "2px 2px 0 0", opacity: 0.8 }} />
+                    <div style={{
+                      width: "100%", height: `${pct}%`,
+                      background: isLatest ? "var(--primary-light)" : "var(--accent-cyan)",
+                      borderRadius: "2px 2px 0 0",
+                      opacity: isLatest ? 1 : 0.65,
+                      boxShadow: isLatest ? "0 0 8px rgba(168,85,247,0.4)" : undefined,
+                    }} />
                   </div>
                 </div>
               );
             })}
+          </div>
+          <div style={{ display: "flex", justifyContent: "space-between", marginTop: 6, fontSize: 11, color: "var(--text-subtle)" }}>
+            <span>{chartData[0].recorded_at.slice(0, 10)}</span>
+            <span style={{ color: "var(--primary-light)" }}>● latest: {displayWeight(chartData[chartData.length - 1].weight_kg)}</span>
+            <span>{chartData[chartData.length - 1].recorded_at.slice(0, 10)}</span>
           </div>
         </div>
       )}

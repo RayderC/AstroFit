@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import Navigation from "../../../components/Navigation";
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
 
 type EntryMode = "manual" | "gps" | "gpx";
@@ -155,6 +155,16 @@ export default function LogRunPage() {
 
   const formatGpsTime = (s: number) => `${Math.floor(s / 3600).toString().padStart(2, "0")}:${Math.floor((s % 3600) / 60).toString().padStart(2, "0")}:${(s % 60).toString().padStart(2, "0")}`;
 
+  const livePace = useMemo(() => {
+    const dist = parseFloat(distKm);
+    const dur = parseInt(durationH || "0") * 3600 + parseInt(durationM || "0") * 60 + parseInt(durationS || "0");
+    if (dist > 0 && dur > 0) {
+      const secPerKm = dur / dist;
+      return `${Math.floor(secPerKm / 60)}:${String(Math.floor(secPerKm % 60)).padStart(2, "0")} /km`;
+    }
+    return null;
+  }, [distKm, durationH, durationM, durationS]);
+
   return (
     <div>
       <Navigation />
@@ -238,6 +248,13 @@ export default function LogRunPage() {
               </div>
             </div>
           </div>
+
+          {livePace && (
+            <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 16px", background: "var(--primary-glow)", border: "1px solid rgba(168,85,247,0.3)", borderRadius: "var(--radius-sm)" }}>
+              <span style={{ fontSize: 13, color: "var(--text-muted)" }}>Calculated pace:</span>
+              <span style={{ fontSize: 18, fontWeight: 800, color: "var(--primary-light)", fontFamily: "var(--font-mono)" }}>{livePace}</span>
+            </div>
+          )}
 
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12 }}>
             <div className="form-group">

@@ -23,11 +23,13 @@ export default async function WorkoutsPage() {
   const unit = (db.prepare("SELECT unit_preference FROM users WHERE id = ?").get(userId) as { unit_preference: string } | undefined)?.unit_preference ?? "km";
 
   const workouts = db.prepare(`
-    SELECT id, type, title, started_at, duration_seconds, distance_meters, notes
-    FROM workouts WHERE user_id = ? ORDER BY started_at DESC LIMIT 100
+    SELECT id, type, title, started_at, duration_seconds, distance_meters, notes,
+           avg_pace_seconds_per_km, calories, elevation_gain_meters
+    FROM workouts WHERE user_id = ? ORDER BY started_at DESC LIMIT 200
   `).all(userId) as {
     id: number; type: string; title: string; started_at: string;
     duration_seconds: number; distance_meters: number | null; notes: string;
+    avg_pace_seconds_per_km: number | null; calories: number | null; elevation_gain_meters: number | null;
   }[];
 
   return (
