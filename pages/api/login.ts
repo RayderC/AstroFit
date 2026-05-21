@@ -3,7 +3,6 @@ import db from "../../lib/db";
 import bcrypt from "bcryptjs";
 import { getIronSession } from "iron-session";
 import { sessionOptions, User } from "../../lib/session";
-import { verifyWerkzeugHash } from "../../lib/legacyPassword";
 import { checkRateLimit } from "../../lib/rateLimit";
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
@@ -28,27 +27,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
 
   const row = db
-    .prepare("SELECT id, username, password, legacy_password, is_admin FROM users WHERE LOWER(username) = ?")
+    .prepare("SELECT id, username, password, is_admin FROM users WHERE LOWER(username) = ?")
     .get(String(username).toLowerCase()) as
-    | { id: number; username: string; password: string; legacy_password: string; is_admin: number }
+    | { id: number; username: string; password: string; is_admin: number }
     | undefined;
 
-  if (!row) {
-    res.status(400).json({ message: "Invalid credentials" });
-    return;
-  }
-
-  let authed = false;
-
-  if (row.password && bcrypt.compareSync(password, row.password)) {
-    authed = true;
-  } else if (row.legacy_password && verifyWerkzeugHash(row.legacy_password, password)) {
-    const hash = bcrypt.hashSync(password, 10);
-    db.prepare("UPDATE users SET password = ?, legacy_password = '' WHERE id = ?").run(hash, row.id);
-    authed = true;
-  }
-
-  if (!authed) {
+  if (!row || !row.password || !bcrypt.compareSync(password, row.password)) {
     res.status(400).json({ message: "Invalid credentials" });
     return;
   }

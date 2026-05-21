@@ -43,16 +43,16 @@ export default function Login() {
   return (
     <div className="auth-page">
       <div className="auth-card">
-        <Link href="/" className="auth-logo">ComicOrbit</Link>
+        <Link href="/" className="auth-logo">AstroFit</Link>
         <h1 className="auth-title">Welcome back</h1>
-        <p className="auth-subtitle">Sign in to access your library</p>
+        <p className="auth-subtitle">Sign in to access your fitness dashboard</p>
 
         <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: "18px" }}>
           {error && <p className="form-error">{error}</p>}
 
           <div className="form-group">
             <label className="form-label" htmlFor="username">Username</label>
-            <input type="text" id="username" name="username" className="form-input" placeholder="admin" autoComplete="username" required />
+            <input type="text" id="username" name="username" className="form-input" placeholder="athlete" autoComplete="username" required />
           </div>
 
           <div className="form-group">

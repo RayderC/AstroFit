@@ -37,12 +37,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
   const navItems = [
     { href: "/dashboard", label: "Overview", icon: "◈" },
-    { href: "/dashboard/add", label: "Add Series", icon: "+" },
-    { href: "/dashboard/downloads", label: "Downloads", icon: "↓" },
-    { href: "/dashboard/library", label: "Library", icon: "⬡" },
-    { href: "/dashboard/settings", label: "Settings", icon: "⚙" },
     { href: "/dashboard/users", label: "Users", icon: "◉" },
     { href: "/dashboard/notifications", label: "Notifications", icon: "✉" },
+    { href: "/dashboard/settings", label: "Settings", icon: "⚙" },
   ];
 
   return (
@@ -51,7 +48,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         <button className="dash-hamburger" onClick={() => setMenuOpen(true)} aria-label="Open menu">
           <span /><span /><span />
         </button>
-        <span className="dash-mobile-title">Dashboard</span>
+        <span className="dash-mobile-title">Admin</span>
       </div>
 
       {menuOpen && <div className="dash-backdrop" onClick={() => setMenuOpen(false)} />}
@@ -59,7 +56,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       <aside className={`sidebar${menuOpen ? " sidebar-open" : ""}`}>
         <div className="sidebar-logo-wrap">
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-            <Link href="/" className="sidebar-logo">ComicOrbit</Link>
+            <Link href="/" className="sidebar-logo">AstroFit</Link>
             <button className="sidebar-close" onClick={() => setMenuOpen(false)} aria-label="Close menu">✕</button>
           </div>
           <span className="sidebar-tag">Admin Dashboard</span>
@@ -82,7 +79,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         <div className="sidebar-footer">
           <Link href="/" className="sidebar-item">
             <span style={{ fontSize: "14px", opacity: 0.7 }}>↗</span>
-            View Site
+            View App
           </Link>
           <button onClick={handleLogout} className="sidebar-item" style={{ color: "var(--danger)", width: "100%" }}>
             <span style={{ fontSize: "14px", opacity: 0.7 }}>→</span>

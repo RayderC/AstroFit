@@ -3,87 +3,53 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 
-interface Counts {
-  series: number;
-  chapters: number;
-  queued: number;
-  downloading: number;
-  users: number;
+interface Stats {
+  total_users: number;
+  total_workouts: number;
+  total_runs: number;
+  total_distance_meters: number;
+  active_today: number;
 }
 
 export default function DashboardOverview() {
-  const [c, setC] = useState<Counts | null>(null);
-  const [scanning, setScanning] = useState(false);
-  const [scanMsg, setScanMsg] = useState("");
+  const [stats, setStats] = useState<Stats | null>(null);
 
   useEffect(() => {
-    Promise.all([
-      fetch("/api/series").then((r) => r.json()),
-      fetch("/api/downloads").then((r) => r.json()),
-      fetch("/api/users").then((r) => r.json()),
-    ]).then(([series, downloads, users]) => {
-      const arr = Array.isArray(series) ? series : [];
-      const dl = Array.isArray(downloads) ? downloads : [];
-      const us = Array.isArray(users) ? users : [];
-      setC({
-        series: arr.length,
-        chapters: 0,
-        queued: dl.filter((q: { status: string }) => q.status === "queued").length,
-        downloading: dl.filter((q: { status: string }) => q.status === "downloading").length,
-        users: us.length,
-      });
-    });
+    fetch("/api/admin/stats")
+      .then((r) => r.ok ? r.json() : null)
+      .then((data) => { if (data) setStats(data); })
+      .catch(() => {});
   }, []);
-
-  async function handleScan() {
-    setScanning(true);
-    setScanMsg("");
-    try {
-      const r = await fetch("/api/scan", { method: "POST" });
-      if (r.ok) setScanMsg("Scan started — new chapters will appear in Downloads.");
-      else setScanMsg("Scan failed to start.");
-    } catch {
-      setScanMsg("Scan failed to start.");
-    }
-    setScanning(false);
-    setTimeout(() => setScanMsg(""), 6000);
-  }
 
   return (
     <>
       <div className="dash-header">
         <div>
           <h1 className="dash-title">Overview</h1>
-          <p className="dash-subtitle">Quick stats and shortcuts for your library.</p>
+          <p className="dash-subtitle">AstroFit admin — manage users and site settings.</p>
         </div>
-        <Link href="/dashboard/add" className="btn btn-primary">+ Add Series</Link>
+        <Link href="/dashboard/users" className="btn btn-primary">+ Add User</Link>
       </div>
 
-      {c ? (
-        <>
-          <div className="stats-row">
-            <div className="stat-card"><div className="stat-value">{c.series}</div><div className="stat-label">Series</div></div>
-            <div className="stat-card"><div className="stat-value">{c.users}</div><div className="stat-label">Users</div></div>
-            <div className="stat-card"><div className="stat-value">{c.downloading}</div><div className="stat-label">Downloading</div></div>
-            <div className="stat-card"><div className="stat-value">{c.queued}</div><div className="stat-label">Queued</div></div>
+      {stats ? (
+        <div className="stats-row">
+          <div className="stat-card"><div className="stat-value">{stats.total_users}</div><div className="stat-label">Users</div></div>
+          <div className="stat-card"><div className="stat-value">{stats.total_workouts}</div><div className="stat-label">Total Workouts</div></div>
+          <div className="stat-card"><div className="stat-value">{stats.total_runs}</div><div className="stat-label">Total Runs</div></div>
+          <div className="stat-card">
+            <div className="stat-value">{(stats.total_distance_meters / 1000).toFixed(0)} km</div>
+            <div className="stat-label">Total Distance</div>
           </div>
-
-          <div style={{ display: "flex", gap: "10px", marginTop: "32px", flexWrap: "wrap", alignItems: "center" }}>
-            <Link href="/dashboard/add" className="btn btn-secondary">Add Series</Link>
-            <Link href="/dashboard/downloads" className="btn btn-secondary">View Queue</Link>
-            <Link href="/dashboard/library" className="btn btn-secondary">Manage Library</Link>
-            <Link href="/dashboard/settings" className="btn btn-secondary">Settings</Link>
-            <button onClick={handleScan} disabled={scanning} className="btn btn-secondary">
-              {scanning ? "Scanning…" : "⟳ Scan for new chapters"}
-            </button>
-          </div>
-          {scanMsg && (
-            <p style={{ marginTop: "12px", fontSize: "13px", color: "var(--text-muted)" }}>{scanMsg}</p>
-          )}
-        </>
+        </div>
       ) : (
         <p style={{ color: "var(--text-muted)" }}>Loading…</p>
       )}
+
+      <div style={{ display: "flex", gap: "10px", marginTop: "32px", flexWrap: "wrap" }}>
+        <Link href="/dashboard/users" className="btn btn-secondary">Manage Users</Link>
+        <Link href="/dashboard/notifications" className="btn btn-secondary">Push Notifications</Link>
+        <Link href="/dashboard/settings" className="btn btn-secondary">Settings</Link>
+      </div>
     </>
   );
 }

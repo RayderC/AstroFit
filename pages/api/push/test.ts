@@ -25,7 +25,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   try {
     await sendPushToUser(session.user.id, {
-      title: "ComicOrbit",
+      title: "AstroFit",
       body: "Test notification — it's working!",
       url: "/profile",
     });

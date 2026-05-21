@@ -9,18 +9,13 @@ export default function ProfilePage() {
   const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
   const [newEmail, setNewEmail] = useState("");
+  const [unitPref, setUnitPref] = useState("km");
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState<{ text: string; ok: boolean } | null>(null);
-
-  // AniList
-  const [anilistToken, setAnilistToken] = useState("");
-  const [newAnilistToken, setNewAnilistToken] = useState("");
-  const [anilistSaving, setAnilistSaving] = useState(false);
-  const [anilistMsg, setAnilistMsg] = useState<{ text: string; ok: boolean } | null>(null);
 
   // Push notifications
   const [vapidKey, setVapidKey] = useState("");
@@ -43,8 +38,7 @@ export default function ProfilePage() {
           setUsername(data.username || "");
           setEmail(data.email || "");
           setNewEmail(data.email || "");
-          setAnilistToken(data.anilist_token || "");
-          setNewAnilistToken(data.anilist_token || "");
+          setUnitPref(data.unit_preference || "km");
         }
         setLoading(false);
       })
@@ -58,22 +52,13 @@ export default function ProfilePage() {
       window.matchMedia("(display-mode: standalone)").matches ||
       !!(navigator as { standalone?: boolean }).standalone
     );
+
     fetch("/api/push/subscribe")
       .then((r) => r.ok ? r.json() : null)
       .then(async (d) => {
         if (!d) return;
         setVapidKey(d.publicKey);
         setNotifSubscribed(d.subscribed);
-        // Cache the VAPID key so the service worker can resubscribe on
-        // pushsubscriptionchange without a roundtrip to the server.
-        if ("serviceWorker" in navigator && "caches" in window) {
-          try {
-            const cache = await caches.open("comicorbit-v2");
-            await cache.put("/__vapid_key", new Response(d.publicKey, { headers: { "Content-Type": "text/plain" } }));
-          } catch { /* non-fatal */ }
-        }
-        // If the local browser subscription's endpoint drifted from what the
-        // server has, re-bind it. iOS silently rotates endpoints.
         if (d.subscribed && "serviceWorker" in navigator) {
           try {
             const reg = await navigator.serviceWorker.ready;
@@ -103,33 +88,25 @@ export default function ProfilePage() {
     try {
       const body: Record<string, string> = {};
       if (newEmail !== email) body.email = newEmail;
+      if (unitPref) body.unit_preference = unitPref;
       if (newPassword) { body.password = newPassword; body.currentPassword = currentPassword; }
       if (Object.keys(body).length === 0) { setMsg({ text: "No changes to save", ok: false }); setSaving(false); return; }
       const r = await fetch("/api/profile", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
       const data = await r.json();
-      if (r.ok) { setMsg({ text: "Profile updated", ok: true }); setEmail(newEmail); setCurrentPassword(""); setNewPassword(""); setConfirmPassword(""); }
-      else { setMsg({ text: data.message || "Update failed", ok: false }); }
+      if (r.ok) {
+        setMsg({ text: "Profile updated", ok: true });
+        setEmail(newEmail);
+        setCurrentPassword(""); setNewPassword(""); setConfirmPassword("");
+      } else {
+        setMsg({ text: data.message || "Update failed", ok: false });
+      }
     } catch { setMsg({ text: "Network error", ok: false }); }
     setSaving(false);
   }
 
-  async function handleAnilistSave(e: React.FormEvent) {
-    e.preventDefault();
-    setAnilistSaving(true); setAnilistMsg(null);
-    try {
-      const r = await fetch("/api/profile", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ anilistToken: newAnilistToken }) });
-      const data = await r.json();
-      if (r.ok) { setAnilistToken(newAnilistToken); setAnilistMsg({ text: newAnilistToken ? "Token saved — progress will sync to AniList" : "Token removed", ok: true }); }
-      else { setAnilistMsg({ text: data.message || "Failed", ok: false }); }
-    } catch { setAnilistMsg({ text: "Network error", ok: false }); }
-    setAnilistSaving(false);
-  }
-
   async function toggleNotifications() {
     if (!notifSupported || !vapidKey || notifBusy) return;
-    setNotifBusy(true);
-    setNotifError("");
-    setNotifTestResult(null);
+    setNotifBusy(true); setNotifError(""); setNotifTestResult(null);
     try {
       const reg = await navigator.serviceWorker.ready;
       if (notifSubscribed) {
@@ -141,25 +118,20 @@ export default function ProfilePage() {
         setNotifSubscribed(false);
       } else {
         const perm = await Notification.requestPermission();
-        if (perm === "denied") { setNotifError("Notifications are blocked in your browser. Allow them in browser settings and try again."); setNotifBusy(false); return; }
+        if (perm === "denied") { setNotifError("Notifications are blocked. Allow them in browser settings and try again."); setNotifBusy(false); return; }
         if (perm !== "granted") { setNotifBusy(false); return; }
         const sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: urlBase64ToUint8Array(vapidKey) });
         const json = sub.toJSON();
         const r = await fetch("/api/push/subscribe", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ endpoint: json.endpoint, keys: json.keys }) });
-        if (!r.ok) {
-          const d = await r.json().catch(() => ({}));
-          setNotifError(d.message || "Failed to save subscription — try again.");
-          setNotifBusy(false);
-          return;
-        }
+        if (!r.ok) { setNotifError("Failed to save subscription — try again."); setNotifBusy(false); return; }
         setNotifSubscribed(true);
       }
     } catch (e) {
-      const msg = (e as Error).message || "Unknown error";
-      if (msg.includes("pushManager") || msg.includes("secure") || msg.includes("https")) {
-        setNotifError("Push notifications require HTTPS. Access this site over https:// to use notifications.");
+      const errMsg = (e as Error).message || "Unknown error";
+      if (errMsg.includes("pushManager") || errMsg.includes("secure") || errMsg.includes("https")) {
+        setNotifError("Push notifications require HTTPS. Access this site over https:// to enable notifications.");
       } else {
-        setNotifError(`Failed: ${msg}`);
+        setNotifError(`Failed: ${errMsg}`);
       }
     }
     setNotifBusy(false);
@@ -170,10 +142,8 @@ export default function ProfilePage() {
     try {
       const r = await fetch("/api/push/test", { method: "POST" });
       const d = await r.json().catch(() => ({}));
-      setNotifTestResult({ text: r.ok ? "Test notification sent — check your device." : (d.message || "Failed"), ok: r.ok });
-    } catch {
-      setNotifTestResult({ text: "Network error", ok: false });
-    }
+      setNotifTestResult({ text: r.ok ? "Test notification sent." : (d.message || "Failed"), ok: r.ok });
+    } catch { setNotifTestResult({ text: "Network error", ok: false }); }
   }
 
   if (loading) return (
@@ -195,11 +165,29 @@ export default function ProfilePage() {
             <div style={{ fontSize: "11px", color: "var(--text-subtle)", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: "4px" }}>Username</div>
             <div style={{ fontFamily: "var(--font-mono)", fontSize: "15px", color: "var(--text)" }}>{username}</div>
           </div>
+
           <form onSubmit={handleSave} style={{ display: "flex", flexDirection: "column", gap: "18px" }}>
             <div>
               <label className="form-label" htmlFor="email">Email address</label>
               <input id="email" type="email" className="form-input" value={newEmail} onChange={(e) => setNewEmail(e.target.value)} placeholder="your@email.com" style={{ marginTop: "6px" }} />
             </div>
+
+            <div>
+              <label className="form-label">Distance unit preference</label>
+              <div style={{ display: "flex", gap: "8px", marginTop: "8px" }}>
+                {(["km", "mi"] as const).map((u) => (
+                  <button
+                    key={u}
+                    type="button"
+                    className={`btn btn-sm ${unitPref === u ? "btn-primary" : "btn-secondary"}`}
+                    onClick={() => setUnitPref(u)}
+                  >
+                    {u === "km" ? "Kilometers (km)" : "Miles (mi)"}
+                  </button>
+                ))}
+              </div>
+            </div>
+
             <div style={{ borderTop: "1px solid var(--border)", paddingTop: "18px" }}>
               <p style={{ fontSize: "12px", color: "var(--text-subtle)", marginBottom: "14px" }}>Leave password fields blank to keep your current password.</p>
               <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
@@ -208,74 +196,35 @@ export default function ProfilePage() {
                 <div><label className="form-label" htmlFor="cpw2">Confirm password</label><input id="cpw2" type="password" className="form-input" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} placeholder="Confirm new password" style={{ marginTop: "6px" }} /></div>
               </div>
             </div>
+
             {msg && <p style={{ fontSize: "13px", color: msg.ok ? "var(--success)" : "var(--danger)" }}>{msg.text}</p>}
             <button type="submit" className="btn btn-primary" disabled={saving}>{saving ? "Saving…" : "Save changes"}</button>
           </form>
         </div>
 
-        {/* AniList sync */}
-        <div className="card" style={{ padding: "28px", marginBottom: "24px" }}>
-          <h2 style={{ fontSize: "15px", fontWeight: 700, marginBottom: "6px" }}>AniList Sync</h2>
-          <p style={{ fontSize: "12px", color: "var(--text-subtle)", marginBottom: "16px", lineHeight: 1.5 }}>
-            Auto-sync chapter completions to AniList. Generate a personal access token at{" "}
-            <a href="https://anilist.co/settings/developer" target="_blank" rel="noopener noreferrer" style={{ color: "var(--accent-cyan)" }}>anilist.co/settings/developer</a>.
-          </p>
-          <form onSubmit={handleAnilistSave} style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
-            <div>
-              <label className="form-label" htmlFor="anilist-token">Personal access token</label>
-              <input id="anilist-token" type="password" className="form-input" value={newAnilistToken} onChange={(e) => setNewAnilistToken(e.target.value)} placeholder="Paste your AniList token…" style={{ marginTop: "6px", fontFamily: "var(--font-mono)", fontSize: "12px" }} />
-            </div>
-            {anilistToken && <p style={{ fontSize: "11px", color: "var(--accent-cyan)" }}>✓ Syncing to AniList</p>}
-            {anilistMsg && <p style={{ fontSize: "13px", color: anilistMsg.ok ? "var(--success)" : "var(--danger)" }}>{anilistMsg.text}</p>}
-            <div style={{ display: "flex", gap: "8px" }}>
-              <button type="submit" className="btn btn-primary" disabled={anilistSaving}>{anilistSaving ? "Saving…" : "Save token"}</button>
-              {anilistToken && <button type="button" className="btn btn-ghost" onClick={() => { setNewAnilistToken(""); handleAnilistSave({ preventDefault: () => {} } as React.FormEvent); }}>Disconnect</button>}
-            </div>
-          </form>
-        </div>
-
-        {/* OPDS — read your library from external clients */}
-        <div className="card" style={{ padding: "28px", marginBottom: "24px" }}>
-          <h2 style={{ fontSize: "15px", fontWeight: 700, marginBottom: "6px" }}>OPDS feed</h2>
-          <p style={{ fontSize: "12px", color: "var(--text-subtle)", marginBottom: "12px", lineHeight: 1.5 }}>
-            Browse and download your library from native comic readers (Panels, Chunky,
-            Paperback on iOS; Moon+ Reader, KyBook on Android). Add a new OPDS catalog
-            in the client and use your ComicOrbit username and password.
-          </p>
-          <code style={{ display: "block", fontSize: "12px", padding: "10px 12px", background: "rgba(255,255,255,0.04)", border: "1px solid var(--border)", borderRadius: "6px", fontFamily: "var(--font-mono)", wordBreak: "break-all" }}>
-            {typeof window !== "undefined" ? `${window.location.origin}/opds` : "/opds"}
-          </code>
-        </div>
-
         {/* Push notifications */}
         <div className="card" style={{ padding: "28px" }}>
-          <h2 style={{ fontSize: "15px", fontWeight: 700, marginBottom: "6px" }}>Chapter Notifications</h2>
+          <h2 style={{ fontSize: "15px", fontWeight: 700, marginBottom: "6px" }}>Goal Reminders</h2>
           <p style={{ fontSize: "12px", color: "var(--text-subtle)", marginBottom: "16px", lineHeight: 1.5 }}>
-            Get a push notification on this device whenever a new chapter finishes downloading.
+            Get push notifications for weekly goal check-ins and streak reminders.
           </p>
 
-          {/* iOS not installed as PWA */}
           {isIOS && !isStandalone && (
             <div style={{ background: "rgba(251,191,36,0.08)", border: "1px solid rgba(251,191,36,0.3)", borderRadius: "8px", padding: "12px 14px" }}>
               <p style={{ fontSize: "13px", color: "#fbbf24", fontWeight: 600, marginBottom: "4px" }}>Add to Home Screen required</p>
               <p style={{ fontSize: "12px", color: "var(--text-subtle)", lineHeight: 1.6 }}>
-                iOS only supports push notifications for installed apps. Tap the <strong style={{ color: "var(--text)" }}>Share</strong> button in Safari, then choose <strong style={{ color: "var(--text)" }}>Add to Home Screen</strong>. Open the app from your Home Screen and come back here to enable notifications.
+                iOS only supports push notifications for installed apps. Tap the <strong style={{ color: "var(--text)" }}>Share</strong> button in Safari, then <strong style={{ color: "var(--text)" }}>Add to Home Screen</strong>. Re-open from your home screen and come back here.
               </p>
             </div>
           )}
 
-          {/* Supported and keys available */}
           {notifSupported && vapidKey && (
             <>
               <div style={{ display: "flex", gap: "8px", flexWrap: "wrap", alignItems: "center" }}>
                 <button className={`btn ${notifSubscribed ? "btn-ghost" : "btn-primary"}`} onClick={toggleNotifications} disabled={notifBusy}>
                   {notifBusy ? "Working…" : notifSubscribed ? "Disable notifications" : "Enable notifications"}
                 </button>
-                {notifSubscribed && (
-                  <button className="btn btn-ghost btn-sm" onClick={sendTestNotification}>
-                    Send test
-                  </button>
-                )}
+                {notifSubscribed && <button className="btn btn-ghost btn-sm" onClick={sendTestNotification}>Send test</button>}
               </div>
               {notifSubscribed && <p style={{ fontSize: "11px", color: "var(--accent-cyan)", marginTop: "10px" }}>✓ Notifications enabled on this device</p>}
               {notifError && <p style={{ fontSize: "12px", color: "var(--danger)", marginTop: "10px" }}>{notifError}</p>}
@@ -283,14 +232,9 @@ export default function ProfilePage() {
             </>
           )}
 
-          {/* Not supported (non-iOS) */}
           {!notifSupported && !isIOS && (
-            <p style={{ fontSize: "12px", color: "var(--text-subtle)" }}>
-              Your browser does not support push notifications. Try Chrome or Edge.
-            </p>
+            <p style={{ fontSize: "12px", color: "var(--text-subtle)" }}>Your browser does not support push notifications. Try Chrome or Edge.</p>
           )}
-
-          {/* Keys missing */}
           {notifSupported && !vapidKey && (
             <p style={{ fontSize: "12px", color: "var(--danger)" }}>Push keys not available — check server logs.</p>
           )}

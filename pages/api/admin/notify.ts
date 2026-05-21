@@ -32,7 +32,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       res.status(400).json({ message: "Select at least one user" });
       return;
     }
-    const cleanTitle = typeof title === "string" && title.trim() ? title.trim().slice(0, 100) : "ComicOrbit";
+    const cleanTitle = typeof title === "string" && title.trim() ? title.trim().slice(0, 100) : "AstroFit";
     const cleanBody = typeof body === "string" && body.trim() ? body.trim().slice(0, 200) : "Test notification from admin";
 
     let sent = 0;

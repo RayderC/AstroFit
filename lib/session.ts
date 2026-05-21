@@ -11,8 +11,6 @@ declare module "iron-session" {
 const isBuild = process.env.NEXT_PHASE === "phase-production-build";
 const isDev = process.env.NODE_ENV !== "production";
 
-// In production: SESSION_SECRET is mandatory. In dev/build: fall back to a
-// known placeholder so the build pipeline doesn't need the variable set.
 const sessionPassword = process.env.SESSION_SECRET ||
   (isBuild || isDev ? "build_time_placeholder_secret_at_least_32_chars" : "");
 
@@ -23,13 +21,9 @@ if (!isBuild && !isDev && (!sessionPassword || sessionPassword === "build_time_p
 }
 
 if (!sessionPassword || sessionPassword.length < 32) {
-  throw new Error(
-    "SESSION_SECRET must be at least 32 characters"
-  );
+  throw new Error("SESSION_SECRET must be at least 32 characters");
 }
 
-// Secure by default in production — set SESSION_COOKIE_SECURE=false explicitly
-// for plain-HTTP local-network installs.
 const secureCookieEnv = process.env.SESSION_COOKIE_SECURE;
 const secureCookie = secureCookieEnv == null ? !isDev : secureCookieEnv === "true";
 
@@ -43,7 +37,7 @@ if (!isBuild && !isDev && !secureCookie) {
 
 export const sessionOptions: SessionOptions = {
   password: sessionPassword,
-  cookieName: "comicorbit_session",
+  cookieName: "astrofit_session",
   cookieOptions: {
     secure: secureCookie,
     httpOnly: true,

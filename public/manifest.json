@@ -1,7 +1,7 @@
 {
-  "name": "ComicOrbit",
-  "short_name": "ComicOrbit",
-  "description": "Your self-hosted manga library",
+  "name": "AstroFit",
+  "short_name": "AstroFit",
+  "description": "Your self-hosted fitness and running tracker",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#0a0a12",
@@ -45,14 +45,14 @@
       "sizes": "512x512",
       "type": "image/png",
       "form_factor": "wide",
-      "label": "ComicOrbit"
+      "label": "AstroFit Dashboard"
     },
     {
       "src": "/icons/icon-512x512.png",
       "sizes": "512x512",
       "type": "image/png",
-      "label": "ComicOrbit"
+      "label": "AstroFit Workouts"
     }
   ],
-  "categories": ["utilities", "productivity"]
+  "categories": ["health", "fitness", "sports"]
 }

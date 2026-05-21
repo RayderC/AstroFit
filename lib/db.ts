@@ -2,15 +2,14 @@ import Database from "better-sqlite3";
 import path from "path";
 import fs from "fs";
 
-// During `next build`, 23 workers all import this module simultaneously and
+// During `next build`, workers all import this module simultaneously and
 // compete for the same SQLite file. Use an in-memory DB for the build phase
-// so there is no file contention — callers that need the DB (e.g. generateMetadata)
-// already catch errors and fall back to defaults.
+// so there is no file contention.
 const isBuildPhase = process.env.NEXT_PHASE === "phase-production-build";
 
 const dbPath = isBuildPhase
   ? ":memory:"
-  : process.env.DATABASE_PATH || path.resolve(process.cwd(), "comicorbit.db");
+  : process.env.DATABASE_PATH || path.resolve(process.cwd(), "astrofit.db");
 
 if (!isBuildPhase) {
   fs.mkdirSync(path.dirname(dbPath), { recursive: true });
@@ -26,9 +25,9 @@ db.exec(`
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     username TEXT UNIQUE NOT NULL,
     password TEXT NOT NULL DEFAULT '',
-    legacy_password TEXT NOT NULL DEFAULT '',
     email TEXT NOT NULL DEFAULT '',
     is_admin INTEGER NOT NULL DEFAULT 0,
+    unit_preference TEXT NOT NULL DEFAULT 'km',
     created_at TEXT NOT NULL DEFAULT (datetime('now'))
   );
 
@@ -37,96 +36,7 @@ db.exec(`
     value TEXT NOT NULL DEFAULT ''
   );
 
-  CREATE TABLE IF NOT EXISTS series (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    slug TEXT UNIQUE NOT NULL,
-    title TEXT NOT NULL,
-    type TEXT NOT NULL,
-    source TEXT NOT NULL DEFAULT '',
-    source_url TEXT NOT NULL DEFAULT '',
-    description TEXT NOT NULL DEFAULT '',
-    cover_path TEXT NOT NULL DEFAULT '',
-    status TEXT NOT NULL DEFAULT 'unknown',
-    one_shot INTEGER NOT NULL DEFAULT 0,
-    series_folder TEXT NOT NULL DEFAULT '',
-    created_at TEXT NOT NULL DEFAULT (datetime('now')),
-    updated_at TEXT NOT NULL DEFAULT (datetime('now'))
-  );
-
-  CREATE TABLE IF NOT EXISTS series_tags (
-    series_id INTEGER NOT NULL,
-    tag TEXT NOT NULL,
-    PRIMARY KEY (series_id, tag),
-    FOREIGN KEY (series_id) REFERENCES series(id) ON DELETE CASCADE
-  );
-
-  CREATE TABLE IF NOT EXISTS chapters (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    series_id INTEGER NOT NULL,
-    number REAL NOT NULL,
-    title TEXT NOT NULL DEFAULT '',
-    file_path TEXT NOT NULL,
-    page_count INTEGER NOT NULL DEFAULT 0,
-    downloaded_at TEXT NOT NULL DEFAULT (datetime('now')),
-    UNIQUE (series_id, number),
-    FOREIGN KEY (series_id) REFERENCES series(id) ON DELETE CASCADE
-  );
-
-  CREATE TABLE IF NOT EXISTS download_queue (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    series_id INTEGER NOT NULL,
-    status TEXT NOT NULL DEFAULT 'queued',
-    error_message TEXT NOT NULL DEFAULT '',
-    progress_pct REAL NOT NULL DEFAULT 0,
-    current_chapter TEXT NOT NULL DEFAULT '',
-    added_at TEXT NOT NULL DEFAULT (datetime('now')),
-    updated_at TEXT NOT NULL DEFAULT (datetime('now')),
-    FOREIGN KEY (series_id) REFERENCES series(id) ON DELETE CASCADE
-  );
-
-  CREATE TABLE IF NOT EXISTS read_progress (
-    user_id INTEGER NOT NULL,
-    series_id INTEGER NOT NULL,
-    chapter_id INTEGER NOT NULL,
-    page INTEGER NOT NULL DEFAULT 0,
-    completed INTEGER NOT NULL DEFAULT 0,
-    updated_at TEXT NOT NULL DEFAULT (datetime('now')),
-    PRIMARY KEY (user_id, series_id, chapter_id),
-    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
-    FOREIGN KEY (series_id) REFERENCES series(id) ON DELETE CASCADE,
-    FOREIGN KEY (chapter_id) REFERENCES chapters(id) ON DELETE CASCADE
-  );
-
-  CREATE TABLE IF NOT EXISTS favorites (
-    user_id INTEGER NOT NULL,
-    series_id INTEGER NOT NULL,
-    created_at TEXT NOT NULL DEFAULT (datetime('now')),
-    PRIMARY KEY (user_id, series_id),
-    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
-    FOREIGN KEY (series_id) REFERENCES series(id) ON DELETE CASCADE
-  );
-
-  CREATE INDEX IF NOT EXISTS idx_chapters_series ON chapters(series_id, number);
-  CREATE INDEX IF NOT EXISTS idx_queue_status ON download_queue(status);
-  CREATE INDEX IF NOT EXISTS idx_read_user ON read_progress(user_id, series_id);
-`);
-
-// Inline migrations — each wrapped in try/catch so re-runs are no-ops.
-// Inline migrations — idempotent ALTER TABLE statements for upgrading existing DBs.
-// New installs get the correct schema from CREATE TABLE above; these only run for
-// users upgrading from an older version.
-const migrations = [
-  `ALTER TABLE users ADD COLUMN legacy_password TEXT NOT NULL DEFAULT ''`,
-  `ALTER TABLE users ADD COLUMN email TEXT NOT NULL DEFAULT ''`,
-  `ALTER TABLE series ADD COLUMN one_shot INTEGER NOT NULL DEFAULT 0`,
-  `ALTER TABLE series ADD COLUMN series_folder TEXT NOT NULL DEFAULT ''`,
-  `ALTER TABLE series ADD COLUMN reading_mode TEXT NOT NULL DEFAULT 'ltr'`,
-  `ALTER TABLE series ADD COLUMN original_cover_path TEXT NOT NULL DEFAULT ''`,
-  `ALTER TABLE download_queue ADD COLUMN current_chapter TEXT NOT NULL DEFAULT ''`,
-  `ALTER TABLE download_queue ADD COLUMN updated_at TEXT NOT NULL DEFAULT (datetime('now'))`,
-  `ALTER TABLE users ADD COLUMN anilist_token TEXT NOT NULL DEFAULT ''`,
-  `ALTER TABLE series ADD COLUMN anilist_id INTEGER`,
-  `CREATE TABLE IF NOT EXISTS push_subscriptions (
+  CREATE TABLE IF NOT EXISTS push_subscriptions (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     user_id INTEGER NOT NULL,
     endpoint TEXT NOT NULL,
@@ -135,37 +45,274 @@ const migrations = [
     created_at TEXT NOT NULL DEFAULT (datetime('now')),
     UNIQUE(user_id, endpoint),
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
-  )`,
-  // Batches per-chapter pushes into a single notification per (user, series).
-  // The outbox flusher sends rows once they've been idle for the batch window.
-  `CREATE TABLE IF NOT EXISTS notification_outbox (
+  );
+
+  -- Core workout log (running + strength + other)
+  CREATE TABLE IF NOT EXISTS workouts (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
     user_id INTEGER NOT NULL,
-    series_id INTEGER NOT NULL,
-    chapter_count INTEGER NOT NULL DEFAULT 1,
-    latest_chapter REAL,
-    first_at TEXT NOT NULL DEFAULT (datetime('now')),
-    last_at TEXT NOT NULL DEFAULT (datetime('now')),
-    PRIMARY KEY (user_id, series_id),
+    type TEXT NOT NULL DEFAULT 'run',
+    title TEXT NOT NULL DEFAULT '',
+    notes TEXT NOT NULL DEFAULT '',
+    started_at TEXT NOT NULL,
+    duration_seconds INTEGER NOT NULL DEFAULT 0,
+    -- Run-specific fields
+    distance_meters REAL,
+    avg_pace_seconds_per_km REAL,
+    avg_heart_rate INTEGER,
+    max_heart_rate INTEGER,
+    elevation_gain_meters REAL,
+    elevation_loss_meters REAL,
+    calories INTEGER,
+    cadence INTEGER,
+    gpx_data TEXT,
+    -- Import source
+    source TEXT NOT NULL DEFAULT 'manual',
+    strava_id TEXT,
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+  );
+
+  -- Per-km/mi splits for runs
+  CREATE TABLE IF NOT EXISTS run_splits (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    workout_id INTEGER NOT NULL,
+    split_number INTEGER NOT NULL,
+    distance_meters REAL NOT NULL,
+    duration_seconds INTEGER NOT NULL,
+    elevation_gain_meters REAL,
+    FOREIGN KEY (workout_id) REFERENCES workouts(id) ON DELETE CASCADE
+  );
+
+  -- Exercises performed in a strength workout
+  CREATE TABLE IF NOT EXISTS workout_exercises (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    workout_id INTEGER NOT NULL,
+    exercise_name TEXT NOT NULL,
+    muscle_group TEXT NOT NULL DEFAULT '',
+    order_index INTEGER NOT NULL DEFAULT 0,
+    notes TEXT NOT NULL DEFAULT '',
+    FOREIGN KEY (workout_id) REFERENCES workouts(id) ON DELETE CASCADE
+  );
+
+  -- Sets for each exercise
+  CREATE TABLE IF NOT EXISTS exercise_sets (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    workout_exercise_id INTEGER NOT NULL,
+    set_number INTEGER NOT NULL,
+    reps INTEGER,
+    weight_kg REAL,
+    duration_seconds INTEGER,
+    rest_seconds INTEGER,
+    completed INTEGER NOT NULL DEFAULT 1,
+    FOREIGN KEY (workout_exercise_id) REFERENCES workout_exercises(id) ON DELETE CASCADE
+  );
+
+  -- Reusable workout templates
+  CREATE TABLE IF NOT EXISTS workout_templates (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL,
+    name TEXT NOT NULL,
+    type TEXT NOT NULL DEFAULT 'strength',
+    description TEXT NOT NULL DEFAULT '',
+    estimated_duration_minutes INTEGER,
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+  );
+
+  CREATE TABLE IF NOT EXISTS template_exercises (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    template_id INTEGER NOT NULL,
+    exercise_name TEXT NOT NULL,
+    muscle_group TEXT NOT NULL DEFAULT '',
+    sets INTEGER NOT NULL DEFAULT 3,
+    reps TEXT NOT NULL DEFAULT '8-12',
+    weight_kg REAL,
+    rest_seconds INTEGER DEFAULT 60,
+    order_index INTEGER NOT NULL DEFAULT 0,
+    FOREIGN KEY (template_id) REFERENCES workout_templates(id) ON DELETE CASCADE
+  );
+
+  -- Training plans
+  CREATE TABLE IF NOT EXISTS training_plans (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL,
+    name TEXT NOT NULL,
+    description TEXT NOT NULL DEFAULT '',
+    goal_type TEXT NOT NULL DEFAULT 'custom',
+    goal_date TEXT,
+    weeks_duration INTEGER NOT NULL DEFAULT 12,
+    start_date TEXT,
+    is_active INTEGER NOT NULL DEFAULT 0,
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+  );
+
+  CREATE TABLE IF NOT EXISTS plan_weeks (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    plan_id INTEGER NOT NULL,
+    week_number INTEGER NOT NULL,
+    description TEXT NOT NULL DEFAULT '',
+    target_distance_km REAL,
+    FOREIGN KEY (plan_id) REFERENCES training_plans(id) ON DELETE CASCADE
+  );
+
+  CREATE TABLE IF NOT EXISTS plan_workouts (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    week_id INTEGER NOT NULL,
+    day_of_week INTEGER NOT NULL,
+    type TEXT NOT NULL DEFAULT 'easy_run',
+    title TEXT NOT NULL,
+    description TEXT NOT NULL DEFAULT '',
+    target_distance_km REAL,
+    target_duration_minutes INTEGER,
+    target_pace TEXT NOT NULL DEFAULT '',
+    completed_workout_id INTEGER,
+    FOREIGN KEY (week_id) REFERENCES plan_weeks(id) ON DELETE CASCADE,
+    FOREIGN KEY (completed_workout_id) REFERENCES workouts(id) ON DELETE SET NULL
+  );
+
+  -- Goals
+  CREATE TABLE IF NOT EXISTS goals (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL,
+    type TEXT NOT NULL,
+    title TEXT NOT NULL DEFAULT '',
+    target_value REAL NOT NULL,
+    unit TEXT NOT NULL DEFAULT 'km',
+    period_start TEXT,
+    period_end TEXT,
+    is_recurring INTEGER NOT NULL DEFAULT 1,
+    is_active INTEGER NOT NULL DEFAULT 1,
+    notes TEXT NOT NULL DEFAULT '',
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+  );
+
+  -- Body metrics log
+  CREATE TABLE IF NOT EXISTS body_metrics (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL,
+    recorded_at TEXT NOT NULL DEFAULT (datetime('now')),
+    weight_kg REAL,
+    body_fat_pct REAL,
+    chest_cm REAL,
+    waist_cm REAL,
+    hips_cm REAL,
+    arms_cm REAL,
+    legs_cm REAL,
+    notes TEXT NOT NULL DEFAULT '',
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+  );
+
+  -- Progress photos
+  CREATE TABLE IF NOT EXISTS progress_photos (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL,
+    recorded_at TEXT NOT NULL DEFAULT (datetime('now')),
+    file_path TEXT NOT NULL,
+    notes TEXT NOT NULL DEFAULT '',
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+  );
+
+  -- Nutrition log
+  CREATE TABLE IF NOT EXISTS nutrition_logs (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL,
+    logged_date TEXT NOT NULL,
+    meal_type TEXT NOT NULL DEFAULT 'snack',
+    food_name TEXT NOT NULL,
+    calories REAL,
+    protein_g REAL,
+    carbs_g REAL,
+    fat_g REAL,
+    amount_g REAL,
+    notes TEXT NOT NULL DEFAULT '',
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+  );
+
+  -- Per-user nutrition macro targets
+  CREATE TABLE IF NOT EXISTS nutrition_goals (
+    user_id INTEGER PRIMARY KEY,
+    calories INTEGER,
+    protein_g INTEGER,
+    carbs_g INTEGER,
+    fat_g INTEGER,
+    updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+  );
+
+  -- Achievement definitions (seeded on startup)
+  CREATE TABLE IF NOT EXISTS achievements (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    code TEXT UNIQUE NOT NULL,
+    name TEXT NOT NULL,
+    description TEXT NOT NULL,
+    icon TEXT NOT NULL DEFAULT '🏅',
+    xp_reward INTEGER NOT NULL DEFAULT 50,
+    category TEXT NOT NULL DEFAULT 'milestone'
+  );
+
+  -- Achievements earned by users
+  CREATE TABLE IF NOT EXISTS user_achievements (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL,
+    achievement_id INTEGER NOT NULL,
+    earned_at TEXT NOT NULL DEFAULT (datetime('now')),
+    UNIQUE(user_id, achievement_id),
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
-    FOREIGN KEY (series_id) REFERENCES series(id) ON DELETE CASCADE
-  )`,
-  // Rolling diagnostics: last N push attempts so admins can see if Apple/Google
-  // is rejecting endpoints (typical 410 Gone, 4xx VAPID errors, etc).
-  `CREATE TABLE IF NOT EXISTS push_log (
+    FOREIGN KEY (achievement_id) REFERENCES achievements(id) ON DELETE CASCADE
+  );
+
+  -- XP and level tracking
+  CREATE TABLE IF NOT EXISTS user_xp (
+    user_id INTEGER PRIMARY KEY,
+    total_xp INTEGER NOT NULL DEFAULT 0,
+    level INTEGER NOT NULL DEFAULT 1,
+    updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+  );
+
+  -- Personal records
+  CREATE TABLE IF NOT EXISTS personal_records (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL,
+    record_type TEXT NOT NULL,
+    value REAL NOT NULL,
+    workout_id INTEGER,
+    achieved_at TEXT NOT NULL,
+    UNIQUE(user_id, record_type),
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    FOREIGN KEY (workout_id) REFERENCES workouts(id) ON DELETE SET NULL
+  );
+
+  -- Push notification delivery log (bounded, for admin diagnostics)
+  CREATE TABLE IF NOT EXISTS push_log (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     user_id INTEGER,
-    endpoint_host TEXT NOT NULL DEFAULT '',
+    endpoint_host TEXT NOT NULL,
     status_code INTEGER,
     error TEXT NOT NULL DEFAULT '',
     title TEXT NOT NULL DEFAULT '',
-    created_at TEXT NOT NULL DEFAULT (datetime('now'))
-  )`,
-  `CREATE INDEX IF NOT EXISTS idx_push_log_created ON push_log(created_at DESC)`,
-];
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_workouts_user ON workouts(user_id, started_at DESC);
+  CREATE INDEX IF NOT EXISTS idx_workouts_type ON workouts(user_id, type);
+  CREATE INDEX IF NOT EXISTS idx_body_metrics_user ON body_metrics(user_id, recorded_at DESC);
+  CREATE INDEX IF NOT EXISTS idx_nutrition_user ON nutrition_logs(user_id, logged_date DESC);
+  CREATE INDEX IF NOT EXISTS idx_goals_user ON goals(user_id, is_active);
+`);
+
+// Inline idempotent migrations for upgrading existing installs.
+const migrations: string[] = [];
 
 if (!isBuildPhase) {
   for (const sql of migrations) {
-    try { db.exec(sql); } catch { /* column/table already correct */ }
+    try { db.exec(sql); } catch { /* already applied */ }
   }
 }
 

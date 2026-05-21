@@ -19,8 +19,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   const userId = session.user.id;
 
   if (req.method === "GET") {
-    const row = db.prepare("SELECT username, email, anilist_token FROM users WHERE id = ?").get(userId) as
-      | { username: string; email: string; anilist_token: string }
+    const row = db.prepare("SELECT username, email, unit_preference FROM users WHERE id = ?").get(userId) as
+      | { username: string; email: string; unit_preference: string }
       | undefined;
     if (!row) { res.status(404).json({ message: "User not found" }); return; }
     res.json(row);
@@ -30,7 +30,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   if (req.method === "PATCH") {
     if (!checkCsrf(req)) { res.status(403).json({ message: "Forbidden" }); return; }
 
-    const { email, password, currentPassword, anilistToken } = req.body ?? {};
+    const { email, password, currentPassword, unit_preference } = req.body ?? {};
     let updated = false;
 
     if (email !== undefined) {
@@ -57,12 +57,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       updated = true;
     }
 
-    if (anilistToken !== undefined) {
-      if (typeof anilistToken !== "string" || anilistToken.length > 2000) {
-        res.status(400).json({ message: "Invalid AniList token" });
+    if (unit_preference !== undefined) {
+      if (!["km", "mi"].includes(String(unit_preference))) {
+        res.status(400).json({ message: "unit_preference must be km or mi" });
         return;
       }
-      db.prepare("UPDATE users SET anilist_token = ? WHERE id = ?").run(anilistToken.trim(), userId);
+      db.prepare("UPDATE users SET unit_preference = ? WHERE id = ?").run(String(unit_preference), userId);
       updated = true;
     }
 

@@ -266,7 +266,7 @@ export default function UsersPage() {
                 className="form-input"
                 value={notifyTitle}
                 onChange={(e) => setNotifyTitle(e.target.value)}
-                placeholder="ComicOrbit"
+                placeholder="AstroFit"
                 maxLength={100}
               />
             </div>

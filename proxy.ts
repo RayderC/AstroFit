@@ -22,8 +22,5 @@ export async function proxy(req: NextRequest) {
 }
 
 export const config = {
-  // Exclude: login, setup, all API routes, Next.js internals,
-  // public static files (favicon, manifest, sw.js, icons), and
-  // OPDS (uses HTTP Basic auth instead of cookies).
-  matcher: ["/((?!login|setup|api|opds|_next|favicon|manifest\\.json|sw\\.js|icons).*)"],
+  matcher: ["/((?!login|setup|api|_next|favicon|manifest\\.json|sw\\.js|icons).*)"],
 };

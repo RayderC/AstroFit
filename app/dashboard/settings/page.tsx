@@ -3,7 +3,6 @@
 import { useEffect, useState } from "react";
 
 export default function SettingsPage() {
-  const [defaultMangaSource, setDefaultMangaSource] = useState("mangafreak");
   const [vapidSubject, setVapidSubject] = useState("");
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -14,7 +13,6 @@ export default function SettingsPage() {
     fetch("/api/site-config")
       .then((r) => r.json())
       .then((cfg: Record<string, string>) => {
-        setDefaultMangaSource(cfg.default_manga_source || "mangafreak");
         setVapidSubject(cfg.VAPID_SUBJECT || "");
       })
       .finally(() => setLoaded(true));
@@ -28,10 +26,7 @@ export default function SettingsPage() {
     const r = await fetch("/api/site-config", {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        default_manga_source: defaultMangaSource,
-        VAPID_SUBJECT: vapidSubject,
-      }),
+      body: JSON.stringify({ VAPID_SUBJECT: vapidSubject }),
     });
     setSaving(false);
     if (r.ok) {
@@ -49,26 +44,13 @@ export default function SettingsPage() {
       <div className="dash-header">
         <div>
           <h1 className="dash-title">Settings</h1>
-          <p className="dash-subtitle">Downloader defaults and push notification identity.</p>
+          <p className="dash-subtitle">Push notification identity and site configuration.</p>
         </div>
       </div>
 
       <form onSubmit={handleSave} style={{ display: "flex", flexDirection: "column", gap: "24px", maxWidth: "560px" }}>
         {error && <p className="form-error">{error}</p>}
         {saved && <p style={{ color: "var(--success)", fontSize: "13px" }}>Saved.</p>}
-
-        <div className="form-group">
-          <label className="form-label">Default manga source</label>
-          <select
-            className="form-select"
-            value={defaultMangaSource}
-            onChange={(e) => setDefaultMangaSource(e.target.value)}
-          >
-            <option value="mangafreak">MangaFreak (scraped)</option>
-            <option value="mangadex">MangaDex (API)</option>
-          </select>
-          <span className="form-hint">Which source to search first when adding new manga.</span>
-        </div>
 
         <div className="form-group">
           <label className="form-label" htmlFor="vapid-subject">Push notification identity (VAPID subject)</label>
@@ -88,7 +70,7 @@ export default function SettingsPage() {
 
         <div>
           <button type="submit" className="btn btn-primary" disabled={saving}>
-            {saving ? "Saving…" : "Save"}
+            {saving ? "Saving…" : "Save Settings"}
           </button>
         </div>
       </form>

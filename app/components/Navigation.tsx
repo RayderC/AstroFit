@@ -32,7 +32,6 @@ export default function Navigation() {
       .catch(() => {});
   }, []);
 
-  // Close drawer on route change
   useEffect(() => { setDrawerOpen(false); }, [pathname]);
 
   async function handleLogout() {
@@ -42,19 +41,22 @@ export default function Navigation() {
 
   const navLinks = [
     { href: "/", label: "Home", active: pathname === "/" },
-    { href: "/library", label: "Library", active: pathname.startsWith("/library") },
     ...(isLoggedIn ? [
-      { href: "/favorites", label: "Favorites", active: pathname.startsWith("/favorites") },
+      { href: "/workouts", label: "Workouts", active: pathname.startsWith("/workouts") },
       { href: "/stats", label: "Stats", active: pathname.startsWith("/stats") },
+      { href: "/goals", label: "Goals", active: pathname.startsWith("/goals") },
+      { href: "/achievements", label: "Achievements", active: pathname.startsWith("/achievements") },
+      { href: "/body", label: "Body", active: pathname.startsWith("/body") },
+      { href: "/nutrition", label: "Nutrition", active: pathname.startsWith("/nutrition") },
+      { href: "/plans", label: "Plans", active: pathname.startsWith("/plans") },
     ] : []),
-    ...(isAdmin ? [{ href: "/dashboard", label: "Dashboard", active: pathname.startsWith("/dashboard") }] : []),
+    ...(isAdmin ? [{ href: "/dashboard", label: "Admin", active: pathname.startsWith("/dashboard") }] : []),
   ];
 
   return (
     <>
       <nav className="nav">
         <div className="nav-inner">
-          {/* Mobile hamburger — left side */}
           <button
             className="nav-hamburger"
             onClick={() => setDrawerOpen(true)}
@@ -65,14 +67,12 @@ export default function Navigation() {
 
           <Link href="/" className="nav-logo">{siteName}</Link>
 
-          {/* Desktop links */}
           <div className="nav-links">
             {navLinks.map((l) => (
               <Link key={l.href} href={l.href} className={`nav-link${l.active ? " active" : ""}`}>{l.label}</Link>
             ))}
           </div>
 
-          {/* Desktop user actions */}
           <div className="nav-actions">
             {isLoggedIn && (
               <>
@@ -89,19 +89,21 @@ export default function Navigation() {
                 </button>
               </>
             )}
+            {!isLoggedIn && (
+              <Link href="/login" className="btn btn-primary btn-sm">Sign In</Link>
+            )}
           </div>
         </div>
       </nav>
 
-      {/* Mobile drawer backdrop */}
       {drawerOpen && (
         <div className="nav-mobile-backdrop" onClick={() => setDrawerOpen(false)} />
       )}
 
-      {/* Mobile drawer */}
       <div className={`nav-mobile-drawer${drawerOpen ? " open" : ""}`}>
         <div className="nav-mobile-drawer-header">
           <Link href="/" className="nav-logo">{siteName}</Link>
+          <button className="nav-mobile-close" onClick={() => setDrawerOpen(false)}>✕</button>
         </div>
 
         <nav className="nav-mobile-links">
@@ -112,7 +114,7 @@ export default function Navigation() {
           ))}
         </nav>
 
-        {isLoggedIn && (
+        {isLoggedIn ? (
           <div className="nav-mobile-user">
             <Link href="/profile" className={`nav-mobile-link${pathname.startsWith("/profile") ? " active" : ""}`}>
               <span className="nav-profile-icon">◉</span> {username} — Profile
@@ -120,6 +122,10 @@ export default function Navigation() {
             <button onClick={handleLogout} className="btn btn-ghost btn-sm" style={{ width: "100%", marginTop: "8px" }}>
               Log out
             </button>
+          </div>
+        ) : (
+          <div className="nav-mobile-user">
+            <Link href="/login" className="btn btn-primary" style={{ width: "100%" }}>Sign In</Link>
           </div>
         )}
       </div>

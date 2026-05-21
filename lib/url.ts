@@ -21,18 +21,3 @@ export function slugify(input: string): string {
     .replace(/(^-|-$)/g, "");
 }
 
-// Sanitize a series/chapter name for safe use as a directory or filename.
-// Strips path traversal sequences, control chars, leading dots, and Windows-reserved
-// characters. Falls back to "untitled" so a fully-stripped name never produces an
-// empty/dot path segment that path.join could resolve outside the intended folder.
-export function sanitizeFsName(name: string): string {
-  let cleaned = (name ?? "")
-    .replace(/[\x00-\x1f]/g, "")
-    .replace(/[<>:"/\\|?*]/g, " -")
-    .replace(/\.\.+/g, " -")
-    .replace(/^[.\s]+/, "")
-    .replace(/[.\s]+$/, "")
-    .trim();
-  if (!cleaned || cleaned === "." || cleaned === "..") cleaned = "untitled";
-  return cleaned.slice(0, 200);
-}

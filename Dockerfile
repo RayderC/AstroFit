@@ -39,9 +39,9 @@ WORKDIR /app
 
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
-ENV PORT=7080
+ENV PORT=7090
 ENV HOSTNAME=0.0.0.0
-ENV DATABASE_PATH=/config/comicorbit.db
+ENV DATABASE_PATH=/config/astrofit.db
 ENV CONFIG_DIRECTORY=/config
 # Defaults for plain HTTP access on a LAN. Set SESSION_COOKIE_SECURE=true
 # in docker-compose.yml if you put this behind a TLS-terminating proxy.
@@ -54,8 +54,8 @@ COPY docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
 # Strip Windows CRLF line endings so the shebang works on Linux
 RUN sed -i 's/\r$//' /usr/local/bin/docker-entrypoint.sh \
     && chmod +x /usr/local/bin/docker-entrypoint.sh \
-    && mkdir -p /config /Manga
+    && mkdir -p /config /uploads
 
-EXPOSE 7080
+EXPOSE 7090
 
 ENTRYPOINT ["/usr/local/bin/docker-entrypoint.sh"]

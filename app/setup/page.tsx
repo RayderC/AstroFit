@@ -60,9 +60,9 @@ export default function Setup() {
   return (
     <div className="auth-page">
       <div className="auth-card">
-        <Link href="/" className="auth-logo">ComicOrbit</Link>
+        <Link href="/" className="auth-logo">AstroFit</Link>
         <h1 className="auth-title">First-time setup</h1>
-        <p className="auth-subtitle">Create the administrator account for this instance.</p>
+        <p className="auth-subtitle">Create the administrator account for this AstroFit instance.</p>
 
         <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: "18px" }}>
           {error && <p className="form-error">{error}</p>}
