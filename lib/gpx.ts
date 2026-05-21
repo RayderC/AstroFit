@@ -51,9 +51,10 @@ export function parseGpx(xml: string): GpxData {
   }
 
   let durationSeconds = 0;
-  if (points.length >= 2 && points[0].time && points[points.length - 1].time) {
+  const lastTime = points[points.length - 1]?.time;
+  if (points.length >= 2 && points[0].time && lastTime) {
     const start = new Date(points[0].time).getTime();
-    const end = new Date(points[points.length - 1].time).getTime();
+    const end = new Date(lastTime).getTime();
     durationSeconds = Math.round((end - start) / 1000);
   }
 

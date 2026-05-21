@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import Navigation from "../../../../components/Navigation";
+import Navigation from "../../../components/Navigation";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 
