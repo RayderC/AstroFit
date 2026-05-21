@@ -74,12 +74,12 @@ export default function Setup() {
 
           <div className="form-group">
             <label className="form-label" htmlFor="password">Password</label>
-            <input type="password" id="password" name="password" className="form-input" placeholder="At least 5 characters" minLength={5} autoComplete="new-password" required defaultValue="admin" />
+            <input type="password" id="password" name="password" className="form-input" placeholder="At least 8 characters" minLength={8} autoComplete="new-password" required />
           </div>
 
           <div className="form-group">
             <label className="form-label" htmlFor="confirm">Confirm password</label>
-            <input type="password" id="confirm" name="confirm" className="form-input" placeholder="Repeat password" minLength={5} autoComplete="new-password" required defaultValue="admin" />
+            <input type="password" id="confirm" name="confirm" className="form-input" placeholder="Repeat password" minLength={8} autoComplete="new-password" required />
           </div>
 
           <button type="submit" className="btn btn-primary" disabled={loading} style={{ marginTop: "4px" }}>
