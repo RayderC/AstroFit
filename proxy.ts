@@ -3,7 +3,7 @@ import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 import { sessionOptions } from "./lib/session";
 
-export async function middleware(req: NextRequest) {
+export async function proxy(req: NextRequest) {
   const res = NextResponse.next();
   try {
     const session = await getIronSession<{ user?: { id: number; username: string } }>(
@@ -15,7 +15,7 @@ export async function middleware(req: NextRequest) {
       return NextResponse.redirect(new URL("/login", req.url));
     }
   } catch (e) {
-    console.error("[middleware] session error:", e instanceof Error ? e.message : e);
+    console.error("[proxy] session error:", e instanceof Error ? e.message : e);
     return NextResponse.redirect(new URL("/login", req.url));
   }
   return res;
