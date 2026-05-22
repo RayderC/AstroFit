@@ -132,220 +132,120 @@ export default async function HomePage() {
   return (
     <div>
       <Navigation />
-      <main style={{ maxWidth: 1200, margin: "0 auto", padding: "32px 24px 80px" }}>
+      <main style={{ maxWidth: 860, margin: "0 auto", padding: "40px 24px 100px" }}>
 
         {/* Header */}
-        <div style={{ marginBottom: 28, display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: 12 }}>
-          <div>
-            <div className="section-eyebrow">Dashboard</div>
-            <h1 style={{ fontSize: 28, fontWeight: 800, letterSpacing: "-0.02em", marginBottom: 4 }}>
-              Welcome back, <span className="gradient-text">{session.user.username}</span>
+        <div style={{ marginBottom: 32 }}>
+          <p style={{ fontSize: 13, color: "var(--text-subtle)", marginBottom: 4 }}>Welcome back</p>
+          <div style={{ display: "flex", alignItems: "center", gap: 14, flexWrap: "wrap" }}>
+            <h1 style={{ fontSize: 30, fontWeight: 800, letterSpacing: "-0.03em" }}>
+              {session.user.username}
             </h1>
-            <p style={{ color: "var(--text-muted)", fontSize: 14 }}>{siteName} — Track. Train. Ascend.</p>
-          </div>
-          {streak >= 2 && (
-            <div className="streak-badge">
-              <span style={{ fontSize: 22 }}>🔥</span>
-              <div>
-                <div style={{ fontSize: 20, fontWeight: 800, color: "var(--text)", lineHeight: 1 }}>{streak}</div>
-                <div style={{ fontSize: 11, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.06em" }}>Day Streak</div>
-              </div>
-            </div>
-          )}
-        </div>
-
-        {/* Weekly stats + comparison */}
-        <div className="metrics-grid" style={{ marginBottom: 20 }}>
-          <div className="metric-card">
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
-              <div>
-                <div className="metric-card-value">{comparison.this_count}</div>
-                <div className="metric-card-label">Workouts</div>
-                <div className="metric-card-sub">this 7 days</div>
-              </div>
-              {countTrend && (
-                <div className={`trend-chip trend-${countTrend.dir}`}>
-                  {countTrend.dir === "up" ? "↑" : "↓"} {countTrend.pct}%
-                </div>
-              )}
-            </div>
-          </div>
-          <div className="metric-card">
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
-              <div>
-                <div className="metric-card-value">{formatDuration(comparison.this_duration)}</div>
-                <div className="metric-card-label">Active Time</div>
-                <div className="metric-card-sub">this 7 days</div>
-              </div>
-            </div>
-          </div>
-          <div className="metric-card">
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
-              <div>
-                <div className="metric-card-value">{formatDistance(comparison.this_dist, unit)}</div>
-                <div className="metric-card-label">Distance</div>
-                <div className="metric-card-sub">this 7 days</div>
-              </div>
-              {distTrend && (
-                <div className={`trend-chip trend-${distTrend.dir}`}>
-                  {distTrend.dir === "up" ? "↑" : "↓"} {distTrend.pct}%
-                </div>
-              )}
-            </div>
-          </div>
-          <div className="metric-card">
-            <div className="metric-card-value" style={{ fontSize: 24, display: "flex", alignItems: "center", gap: 6 }}>
-              Lv.{level} <span style={{ fontSize: 14, color: "var(--text-muted)", fontWeight: 500 }}>{totalXp.toLocaleString()} XP</span>
-            </div>
-            <div className="metric-card-label">Athlete Level</div>
-            <div className="metric-card-sub" style={{ color: "var(--text-subtle)", fontSize: 11, marginTop: 4 }}>vs. prior 7 days: {comparison.prev_count} workout{comparison.prev_count !== 1 ? "s" : ""}</div>
+            {streak >= 2 && (
+              <span style={{ display: "inline-flex", alignItems: "center", gap: 5, padding: "3px 10px", background: "rgba(251,146,60,0.12)", border: "1px solid rgba(251,146,60,0.25)", borderRadius: 100, fontSize: 13, fontWeight: 600, color: "#fb923c" }}>
+                🔥 {streak}-day streak
+              </span>
+            )}
           </div>
         </div>
 
-        {/* Weekly goal progress */}
+        {/* This week stats */}
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 12, marginBottom: 32 }}>
+          {[
+            { value: String(comparison.this_count), label: "Workouts", trend: countTrend },
+            { value: formatDuration(comparison.this_duration), label: "Active time", trend: null },
+            { value: formatDistance(comparison.this_dist, unit), label: "Distance", trend: distTrend },
+          ].map((m) => (
+            <div key={m.label} style={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: "var(--radius)", padding: "18px 20px" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+                <div style={{ fontSize: 26, fontWeight: 800, color: "var(--text)", fontFamily: "var(--font-mono)", letterSpacing: "-0.02em", lineHeight: 1 }}>{m.value}</div>
+                {m.trend && (
+                  <span style={{ fontSize: 11, fontWeight: 700, color: m.trend.dir === "up" ? "var(--success)" : "var(--danger)", background: m.trend.dir === "up" ? "var(--success-bg)" : "var(--danger-bg)", padding: "2px 7px", borderRadius: 100 }}>
+                    {m.trend.dir === "up" ? "↑" : "↓"}{m.trend.pct}%
+                  </span>
+                )}
+              </div>
+              <div style={{ fontSize: 12, color: "var(--text-subtle)", marginTop: 6 }}>{m.label} · this week</div>
+            </div>
+          ))}
+        </div>
+
+        {/* Weekly goal */}
         {weeklyGoalKm > 0 && (
-          <div className="goal-card" style={{ marginBottom: 24 }}>
-            <div className="goal-card-header">
-              <span className="goal-card-title">Weekly Distance Goal</span>
-              <span className="goal-card-pct">{weeklyPct.toFixed(0)}%</span>
+          <div style={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: "var(--radius)", padding: "16px 20px", marginBottom: 32 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
+              <span style={{ fontSize: 13, fontWeight: 600, color: "var(--text-muted)" }}>Weekly distance goal</span>
+              <span style={{ fontSize: 13, fontWeight: 700, color: "var(--primary-light)", fontFamily: "var(--font-mono)" }}>
+                {unit === "mi" ? (weeklyDistKm * 0.621371).toFixed(1) : weeklyDistKm.toFixed(1)} / {unit === "mi" ? (weeklyGoalKm * 0.621371).toFixed(1) : weeklyGoalKm.toFixed(1)} {unit}
+              </span>
             </div>
-            <div className="goal-bar">
-              <div className={`goal-bar-fill${weeklyPct >= 100 ? " complete" : ""}`} style={{ width: `${weeklyPct}%` }} />
-            </div>
-            <div className="goal-card-meta">
-              <span>{unit === "mi" ? (weeklyDistKm * 0.621371).toFixed(1) : weeklyDistKm.toFixed(1)} {unit} done</span>
-              <span>{unit === "mi" ? (weeklyGoalKm * 0.621371).toFixed(1) : weeklyGoalKm.toFixed(1)} {unit} goal</span>
+            <div style={{ height: 6, background: "var(--surface-2)", borderRadius: 3, overflow: "hidden" }}>
+              <div style={{ height: "100%", width: `${weeklyPct}%`, background: weeklyPct >= 100 ? "var(--success)" : "var(--primary-light)", borderRadius: 3, transition: "width 0.4s" }} />
             </div>
           </div>
         )}
 
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 300px", gap: 24, alignItems: "start" }}>
-          {/* Recent workouts */}
-          <div>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
-              <h2 className="shelf-section-title">Recent Workouts</h2>
-              <Link href="/workouts" className="shelf-view-all">View all →</Link>
-            </div>
+        {/* Log quick actions */}
+        <div style={{ display: "flex", gap: 10, marginBottom: 36 }}>
+          <Link href="/workouts/log/run" className="btn btn-primary" style={{ flex: 1, justifyContent: "center" }}>+ Log Run</Link>
+          <Link href="/workouts/log/strength" className="btn btn-primary" style={{ flex: 1, justifyContent: "center" }}>+ Log Strength</Link>
+          <Link href="/workouts/log" className="btn btn-secondary" style={{ flex: 1, justifyContent: "center" }}>Other</Link>
+        </div>
 
-            {recentWorkouts.length === 0 ? (
-              <div className="empty-state" style={{ padding: "48px 24px" }}>
-                <div className="empty-icon">🏃</div>
-                <div className="empty-title">No workouts yet</div>
-                <div className="empty-desc">Log your first workout to get started</div>
-                <Link href="/workouts/log" className="btn btn-primary">Log Workout</Link>
-              </div>
-            ) : (
-              <div className="workout-feed">
-                {recentWorkouts.map((w) => (
-                  <Link key={w.id} href={`/workouts/${w.id}`} className="workout-card">
-                    <div className="workout-card-header">
-                      <div className="workout-type-icon">{workoutIcon(w.type)}</div>
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <div className="workout-card-title">{w.title || (w.type === "run" ? "Run" : "Strength Session")}</div>
-                        <div className="workout-card-date">
-                          {new Date(w.started_at).toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" })}
-                        </div>
-                      </div>
-                      <span className={`workout-type-badge workout-type-${w.type}`}>{w.type}</span>
-                    </div>
-                    <div className="workout-metrics">
-                      <div className="workout-metric">
-                        <div className="workout-metric-value">{formatDuration(w.duration_seconds)}</div>
-                        <div className="workout-metric-label">Duration</div>
-                      </div>
-                      {w.distance_meters != null && (
-                        <div className="workout-metric">
-                          <div className="workout-metric-value">{formatDistance(w.distance_meters, unit)}</div>
-                          <div className="workout-metric-label">Distance</div>
-                        </div>
-                      )}
-                      {w.avg_pace_seconds_per_km != null && (
-                        <div className="workout-metric">
-                          <div className="workout-metric-value" style={{ fontSize: 16 }}>{formatPace(w.avg_pace_seconds_per_km)}</div>
-                          <div className="workout-metric-label">Avg Pace</div>
-                        </div>
-                      )}
-                      {w.calories != null && w.calories > 0 && (
-                        <div className="workout-metric">
-                          <div className="workout-metric-value">{w.calories}</div>
-                          <div className="workout-metric-label">kcal</div>
-                        </div>
-                      )}
-                    </div>
-                  </Link>
-                ))}
-              </div>
-            )}
+        {/* Recent workouts */}
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
+          <h2 style={{ fontSize: 16, fontWeight: 700 }}>Recent workouts</h2>
+          <Link href="/workouts" style={{ fontSize: 13, color: "var(--primary-light)" }}>See all →</Link>
+        </div>
 
-            <div style={{ display: "flex", gap: 8, marginTop: 16 }}>
-              <Link href="/workouts/log/run" className="btn btn-secondary" style={{ flex: 1, justifyContent: "center" }}>🏃 Log Run</Link>
-              <Link href="/workouts/log/strength" className="btn btn-secondary" style={{ flex: 1, justifyContent: "center" }}>💪 Log Strength</Link>
-            </div>
+        {recentWorkouts.length === 0 ? (
+          <div className="empty-state">
+            <div className="empty-icon">🏃</div>
+            <div className="empty-title">No workouts yet</div>
+            <div className="empty-desc">Log your first workout to get started</div>
           </div>
-
-          {/* Sidebar */}
-          <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
-            {streak >= 1 && (
-              <div style={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: "var(--radius)", padding: "16px 20px" }}>
-                <div style={{ fontSize: 12, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 8 }}>Activity Streak</div>
-                <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                  <span style={{ fontSize: 32 }}>🔥</span>
-                  <div>
-                    <div style={{ fontSize: 28, fontWeight: 800, color: "var(--text)" }}>{streak} <span style={{ fontSize: 14, fontWeight: 500, color: "var(--text-muted)" }}>day{streak !== 1 ? "s" : ""}</span></div>
-                    <div style={{ fontSize: 12, color: "var(--text-subtle)" }}>
-                      {streak === 1 ? "Keep it up — train again tomorrow" :
-                       streak < 7 ? "Building momentum!" :
-                       streak < 30 ? "On fire! 🔥" : "Unstoppable! 💎"}
+        ) : (
+          <div className="workout-feed">
+            {recentWorkouts.map((w) => (
+              <Link key={w.id} href={`/workouts/${w.id}`} className="workout-card">
+                <div className="workout-card-header">
+                  <div className="workout-type-icon">{workoutIcon(w.type)}</div>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div className="workout-card-title">{w.title || (w.type === "run" ? "Run" : w.type === "strength" ? "Strength" : "Workout")}</div>
+                    <div className="workout-card-date">
+                      {new Date(w.started_at).toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" })}
                     </div>
                   </div>
+                  <span className={`workout-type-badge workout-type-${w.type}`}>{w.type}</span>
                 </div>
-              </div>
-            )}
-
-            {recentAchievements.length > 0 && (
-              <div>
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
-                  <h2 className="shelf-section-title">Achievements</h2>
-                  <Link href="/achievements" className="shelf-view-all">All →</Link>
-                </div>
-                <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                  {recentAchievements.map((a) => (
-                    <div key={a.name} className="achievement-card earned" style={{ padding: "12px 16px", borderRadius: "var(--radius-sm)" }}>
-                      <div className="achievement-icon" style={{ fontSize: 24 }}>{a.icon}</div>
-                      <div>
-                        <div className="achievement-name" style={{ fontSize: 13 }}>{a.name}</div>
-                        <div style={{ fontSize: 11, color: "var(--text-subtle)" }}>{new Date(a.earned_at).toLocaleDateString()}</div>
-                      </div>
+                <div className="workout-metrics">
+                  <div className="workout-metric">
+                    <div className="workout-metric-value">{formatDuration(w.duration_seconds)}</div>
+                    <div className="workout-metric-label">Duration</div>
+                  </div>
+                  {w.distance_meters != null && (
+                    <div className="workout-metric">
+                      <div className="workout-metric-value">{formatDistance(w.distance_meters, unit)}</div>
+                      <div className="workout-metric-label">Distance</div>
                     </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {activeGoals.length > 0 && (
-              <div>
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
-                  <h2 className="shelf-section-title">Active Goals</h2>
-                  <Link href="/goals" className="shelf-view-all">All →</Link>
-                </div>
-                <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                  {activeGoals.map((g) => (
-                    <div key={g.id} style={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: "var(--radius-sm)", padding: "12px 16px" }}>
-                      <div style={{ fontSize: 13, fontWeight: 600, color: "var(--text)", marginBottom: 2 }}>{g.title}</div>
-                      <div style={{ fontSize: 11, color: "var(--text-subtle)", fontFamily: "var(--font-mono)" }}>Target: {g.target_value} {g.unit}</div>
+                  )}
+                  {w.avg_pace_seconds_per_km != null && (
+                    <div className="workout-metric">
+                      <div className="workout-metric-value" style={{ fontSize: 16 }}>{formatPace(w.avg_pace_seconds_per_km)}</div>
+                      <div className="workout-metric-label">Pace</div>
                     </div>
-                  ))}
+                  )}
+                  {w.calories != null && w.calories > 0 && (
+                    <div className="workout-metric">
+                      <div className="workout-metric-value">{w.calories}</div>
+                      <div className="workout-metric-label">kcal</div>
+                    </div>
+                  )}
                 </div>
-              </div>
-            )}
-
-            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-              <Link href="/stats" className="btn btn-ghost" style={{ justifyContent: "center", fontSize: 13 }}>📊 View Stats</Link>
-              <Link href="/plans" className="btn btn-ghost" style={{ justifyContent: "center", fontSize: 13 }}>📋 Training Plans</Link>
-              <Link href="/body" className="btn btn-ghost" style={{ justifyContent: "center", fontSize: 13 }}>⚖️ Body Metrics</Link>
-            </div>
+              </Link>
+            ))}
           </div>
-        </div>
+        )}
       </main>
     </div>
   );
