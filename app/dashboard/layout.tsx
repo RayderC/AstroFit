@@ -4,91 +4,120 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
+type Me = { username: string; isAdmin: boolean; level: number; xp: number; streakDays: number; xpProgress: { current: number; needed: number; level: number } };
+
+const NAV = [
+  { href: "/dashboard",            label: "Dashboard",  icon: "⚡" },
+  { href: "/dashboard/workout",    label: "Workout",    icon: "💪" },
+  { href: "/dashboard/cardio",     label: "Cardio",     icon: "🏃" },
+  { href: "/dashboard/history",    label: "History",    icon: "📋" },
+  { href: "/dashboard/progress",   label: "Progress",   icon: "📈" },
+  { href: "/dashboard/challenges", label: "Challenges", icon: "🎯" },
+  { href: "/dashboard/templates",  label: "Templates",  icon: "📝" },
+  { href: "/dashboard/exercises",  label: "Exercises",  icon: "🏋️" },
+  { href: "/dashboard/profile",    label: "Profile",    icon: "👤" },
+];
+
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
-  const pathname = usePathname() ?? "";
+  const pathname = usePathname();
   const router = useRouter();
-  const [checking, setChecking] = useState(true);
-  const [menuOpen, setMenuOpen] = useState(false);
+  const [me, setMe] = useState<Me | null>(null);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   useEffect(() => {
-    fetch("/api/user")
-      .then((r) => (r.ok ? r.json() : null))
-      .then((data) => {
-        if (!data?.isAdmin) router.replace("/login");
-        else setChecking(false);
-      })
+    fetch("/api/me")
+      .then(r => { if (r.status === 401) router.replace("/login"); return r.json(); })
+      .then(d => setMe(d))
       .catch(() => router.replace("/login"));
   }, [router]);
 
-  useEffect(() => { setMenuOpen(false); }, [pathname]);
-
-  const handleLogout = async () => {
+  async function logout() {
     await fetch("/api/logout", { method: "POST" });
     router.push("/login");
-  };
-
-  if (checking) {
-    return (
-      <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", color: "var(--text-muted)" }}>
-        Verifying access…
-      </div>
-    );
   }
 
-  const navItems = [
-    { href: "/dashboard", label: "Overview", icon: "◈" },
-    { href: "/dashboard/users", label: "Users", icon: "◉" },
-    { href: "/dashboard/notifications", label: "Notifications", icon: "✉" },
-    { href: "/dashboard/settings", label: "Settings", icon: "⚙" },
-  ];
+  const pct = me ? Math.round((me.xpProgress.current / me.xpProgress.needed) * 100) : 0;
 
   return (
-    <div className="dashboard-root">
-      <div className="dash-mobile-bar">
-        <button className="dash-hamburger" onClick={() => setMenuOpen(true)} aria-label="Open menu">
-          <span /><span /><span />
-        </button>
-        <span className="dash-mobile-title">Admin</span>
-      </div>
-
-      {menuOpen && <div className="dash-backdrop" onClick={() => setMenuOpen(false)} />}
-
-      <aside className={`sidebar${menuOpen ? " sidebar-open" : ""}`}>
-        <div className="sidebar-logo-wrap">
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-            <Link href="/" className="sidebar-logo">AstroFit</Link>
-            <button className="sidebar-close" onClick={() => setMenuOpen(false)} aria-label="Close menu">✕</button>
-          </div>
-          <span className="sidebar-tag">Admin Dashboard</span>
+    <div className="app-shell">
+      {/* Sidebar */}
+      <aside className={`sidebar${sidebarOpen ? " open" : ""}`}>
+        <div className="sidebar-logo">
+          <span>⚡</span> AstroFit
         </div>
 
-        <div className="sidebar-section">
-          <p className="sidebar-section-label">Manage</p>
-          {navItems.map((item) => (
+        {me && (
+          <div style={{ padding: "14px 16px", borderBottom: "1px solid var(--border)" }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "6px" }}>
+              <span className="level-badge">Lvl {me.level}</span>
+              {me.streakDays > 0 && (
+                <span className="streak-badge">🔥 {me.streakDays}d</span>
+              )}
+            </div>
+            <div style={{ fontSize: "12px", color: "var(--text-muted)", marginBottom: "6px" }}>
+              {me.xpProgress.current} / {me.xpProgress.needed} XP
+            </div>
+            <div className="xp-bar-wrap">
+              <div className="xp-bar-fill" style={{ width: `${pct}%` }} />
+            </div>
+          </div>
+        )}
+
+        <nav className="sidebar-nav">
+          {NAV.map(item => (
             <Link
               key={item.href}
               href={item.href}
-              className={`sidebar-item${pathname === item.href ? " active" : ""}`}
+              className={`nav-item${pathname === item.href ? " active" : ""}`}
+              onClick={() => setSidebarOpen(false)}
             >
-              <span style={{ fontSize: "16px", opacity: 0.7 }}>{item.icon}</span>
+              <span style={{ fontSize: "16px" }}>{item.icon}</span>
               {item.label}
             </Link>
           ))}
-        </div>
+
+          {me?.isAdmin && (
+            <>
+              <div className="nav-section-label">Admin</div>
+              <Link href="/dashboard/admin" className={`nav-item${pathname?.startsWith("/dashboard/admin") ? " active" : ""}`} onClick={() => setSidebarOpen(false)}>
+                <span style={{ fontSize: "16px" }}>⚙️</span> Admin Panel
+              </Link>
+            </>
+          )}
+        </nav>
 
         <div className="sidebar-footer">
-          <Link href="/" className="sidebar-item">
-            <span style={{ fontSize: "14px", opacity: 0.7 }}>↗</span>
-            View App
-          </Link>
-          <button onClick={handleLogout} className="sidebar-item" style={{ color: "var(--danger)", width: "100%" }}>
-            <span style={{ fontSize: "14px", opacity: 0.7 }}>→</span>
-            Logout
+          <button onClick={logout} className="nav-item" style={{ width: "100%", background: "none", border: "none", textAlign: "left", cursor: "pointer" }}>
+            <span style={{ fontSize: "16px" }}>🚪</span> Sign Out
           </button>
         </div>
       </aside>
 
-      <main className="dashboard-main">{children}</main>
+      {/* Mobile toggle */}
+      <button
+        onClick={() => setSidebarOpen(o => !o)}
+        style={{
+          display: "none",
+          position: "fixed", top: 16, left: 16, zIndex: 200,
+          background: "var(--surface)", border: "1px solid var(--border-bright)",
+          borderRadius: "8px", padding: "8px 10px", cursor: "pointer",
+          color: "var(--text)", fontSize: "16px",
+        }}
+        className="mobile-menu-btn"
+        aria-label="Toggle menu"
+      >
+        ☰
+      </button>
+
+      <main className="main-content">
+        {children}
+      </main>
+
+      <style>{`
+        @media (max-width: 768px) {
+          .mobile-menu-btn { display: flex !important; }
+        }
+      `}</style>
     </div>
   );
 }

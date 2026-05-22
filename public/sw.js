@@ -1,120 +1,35 @@
-const CACHE_NAME = 'comicorbit-v2';
-// Only cache files that are always publicly accessible (no auth redirect).
-// Authenticated pages like / and /library would 302 → /login during install,
-// causing cache.addAll() to throw and break the whole service worker install.
-const APP_SHELL = ['/manifest.json', '/favicon.png'];
+// AstroFit service worker — cache-first for static, network-first for API
+const CACHE = "astrofit-v1";
+const STATIC = ["/", "/dashboard", "/offline.html"];
 
-self.addEventListener('install', (event) => {
-  event.waitUntil(
-    caches.open(CACHE_NAME).then(cache => cache.addAll(APP_SHELL))
-  );
-  self.skipWaiting();
-});
-
-self.addEventListener('activate', (event) => {
-  event.waitUntil(
-    caches.keys().then(keys =>
-      Promise.all(keys.filter(k => k !== CACHE_NAME).map(k => caches.delete(k)))
-    )
-  );
-  self.clients.claim();
-});
-
-// iOS silently revokes push subscriptions; this fires when the browser issues
-// a fresh endpoint. Re-register it with the server using the cached VAPID key
-// so the user doesn't have to reopen the app to keep getting notifications.
-self.addEventListener('pushsubscriptionchange', (event) => {
-  event.waitUntil((async () => {
-    try {
-      const cache = await caches.open(CACHE_NAME);
-      const keyResp = await cache.match('/__vapid_key');
-      if (!keyResp) return;
-      const vapidKey = await keyResp.text();
-      const buf = urlBase64ToUint8Array(vapidKey);
-      const sub = await self.registration.pushManager.subscribe({
-        userVisibleOnly: true,
-        applicationServerKey: buf,
-      });
-      const json = sub.toJSON();
-      await fetch('/api/push/subscribe', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ endpoint: json.endpoint, keys: json.keys }),
-        credentials: 'include',
-      });
-    } catch (e) {
-      // Best-effort — client-side resubscribe on next PWA launch is the fallback.
-    }
-  })());
-});
-
-function urlBase64ToUint8Array(base64String) {
-  const padding = '='.repeat((4 - (base64String.length % 4)) % 4);
-  const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
-  const raw = atob(base64);
-  const buf = new Uint8Array(raw.length);
-  for (let i = 0; i < raw.length; i++) buf[i] = raw.charCodeAt(i);
-  return buf;
-}
-
-self.addEventListener('push', (event) => {
-  let data = { title: 'ComicOrbit', body: 'New chapter available', url: '/' };
-  try { data = { ...data, ...event.data.json() }; } catch {}
-  event.waitUntil(
-    self.registration.showNotification(data.title, {
-      body: data.body,
-      icon: '/icons/icon-192x192.png',
-      badge: '/icons/icon-192x192.png',
-      data: { url: data.url },
-    })
+self.addEventListener("install", e => {
+  e.waitUntil(
+    caches.open(CACHE).then(c => c.addAll(STATIC)).then(() => self.skipWaiting())
   );
 });
 
-self.addEventListener('notificationclick', (event) => {
-  event.notification.close();
-  const url = event.notification.data?.url || '/';
-  event.waitUntil(
-    clients.matchAll({ type: 'window', includeUncontrolled: true }).then((list) => {
-      for (const client of list) {
-        if (client.url.includes(self.location.origin) && 'focus' in client) {
-          client.navigate(url);
-          return client.focus();
+self.addEventListener("activate", e => {
+  e.waitUntil(
+    caches.keys().then(keys => Promise.all(
+      keys.filter(k => k !== CACHE).map(k => caches.delete(k))
+    )).then(() => self.clients.claim())
+  );
+});
+
+self.addEventListener("fetch", e => {
+  const url = new URL(e.request.url);
+  // Skip non-GET and API routes
+  if (e.request.method !== "GET" || url.pathname.startsWith("/api/")) return;
+
+  e.respondWith(
+    fetch(e.request)
+      .then(res => {
+        if (res.ok) {
+          const clone = res.clone();
+          caches.open(CACHE).then(c => c.put(e.request, clone));
         }
-      }
-      return clients.openWindow(url);
-    })
-  );
-});
-
-self.addEventListener('fetch', (event) => {
-  const url = new URL(event.request.url);
-
-  // Always go to network for API and auth routes
-  if (url.pathname.startsWith('/api/')) return;
-
-  // Navigation: network first, fallback to cache
-  if (event.request.mode === 'navigate') {
-    event.respondWith(
-      fetch(event.request).catch(() =>
-        caches.match('/') || fetch(event.request)
-      )
-    );
-    return;
-  }
-
-  // Static assets: cache first
-  if (url.pathname.startsWith('/_next/static/') || url.pathname.startsWith('/icons/')) {
-    event.respondWith(
-      caches.match(event.request).then(cached => {
-        if (cached) return cached;
-        return fetch(event.request).then(response => {
-          if (response.ok) {
-            const clone = response.clone();
-            caches.open(CACHE_NAME).then(cache => cache.put(event.request, clone));
-          }
-          return response;
-        });
+        return res;
       })
-    );
-  }
+      .catch(() => caches.match(e.request))
+  );
 });

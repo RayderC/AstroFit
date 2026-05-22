@@ -1,137 +1,70 @@
 import type { NextApiRequest, NextApiResponse } from "next";
-import db from "../../../lib/db";
 import { getIronSession } from "iron-session";
-import { sessionOptions, User } from "../../../lib/session";
-import { checkCsrf } from "../../../lib/csrf";
-import { checkWorkoutAchievements, checkPersonalRecords } from "../../../lib/achievements";
-import { awardXp } from "../../../lib/xp";
-
-export const config = { api: { bodyParser: { sizeLimit: "8mb" } } };
+import { sessionOptions, User } from "@/lib/session";
+import db from "@/lib/db";
+import { checkCsrf } from "@/lib/csrf";
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   const session = await getIronSession<{ user?: User }>(req, res, sessionOptions);
-  if (!session.user) return res.status(401).json({ message: "Login required" });
-  const userId = session.user.id;
+  if (!session.user) return res.status(401).json({ message: "Unauthorized" });
+  const uid = session.user.id;
 
   if (req.method === "GET") {
-    const { limit = "50", offset = "0", type } = req.query;
-    const lim = Math.min(parseInt(String(limit), 10) || 50, 200);
-    const off = parseInt(String(offset), 10) || 0;
-
-    const rows = db.prepare(`
-      SELECT id, type, title, notes, started_at, duration_seconds,
-             distance_meters, avg_pace_seconds_per_km, avg_heart_rate,
-             elevation_gain_meters, calories, source, created_at
-      FROM workouts
-      WHERE user_id = ?${type ? " AND type = ?" : ""}
-      ORDER BY started_at DESC
+    const limit = Math.min(Number(req.query.limit) || 20, 100);
+    const offset = Number(req.query.offset) || 0;
+    const workouts = db.prepare(`
+      SELECT w.id, w.name, w.started_at, w.completed_at, w.duration_seconds, w.xp_earned,
+             COUNT(DISTINCT we.exercise_id) as exercise_count,
+             COUNT(CASE WHEN ws.completed = 1 THEN 1 END) as set_count
+      FROM workouts w
+      LEFT JOIN workout_exercises we ON we.workout_id = w.id
+      LEFT JOIN workout_sets ws ON ws.workout_exercise_id = we.id
+      WHERE w.user_id = ? AND w.completed_at IS NOT NULL
+      GROUP BY w.id
+      ORDER BY w.started_at DESC
       LIMIT ? OFFSET ?
-    `).all(...(type ? [userId, type, lim, off] : [userId, lim, off]));
-
-    return res.json(rows);
+    `).all(uid, limit, offset);
+    return res.json(workouts);
   }
 
   if (req.method === "POST") {
     if (!checkCsrf(req)) return res.status(403).json({ message: "Forbidden" });
+    const { name, templateId } = req.body as { name?: string; templateId?: number };
 
-    const {
-      type, title, started_at, duration_seconds,
-      distance_meters, avg_pace_seconds_per_km,
-      avg_heart_rate, max_heart_rate,
-      elevation_gain_meters, calories, cadence,
-      notes, source, gpx_data, exercises,
-    } = req.body ?? {};
+    // Check for an existing active (non-completed) workout
+    const active = db.prepare(
+      "SELECT id FROM workouts WHERE user_id = ? AND completed_at IS NULL"
+    ).get(uid) as { id: number } | undefined;
+    if (active) return res.status(409).json({ message: "You already have an active workout", id: active.id });
 
-    if (!type || !["run", "strength", "cycling", "other"].includes(type)) {
-      return res.status(400).json({ message: "Invalid workout type" });
-    }
-    if (!started_at || !duration_seconds) {
-      return res.status(400).json({ message: "started_at and duration_seconds are required" });
-    }
-    if (typeof duration_seconds !== "number" || duration_seconds < 0 || duration_seconds > 86400 * 2) {
-      return res.status(400).json({ message: "Invalid duration" });
-    }
+    const workoutName = name?.trim() || (templateId ? "Template Workout" : "Quick Workout");
+    const result = db.prepare(
+      "INSERT INTO workouts (user_id, template_id, name) VALUES (?, ?, ?)"
+    ).run(uid, templateId ?? null, workoutName);
 
-    const insert = db.prepare(`
-      INSERT INTO workouts (
-        user_id, type, title, notes, started_at, duration_seconds,
-        distance_meters, avg_pace_seconds_per_km, avg_heart_rate, max_heart_rate,
-        elevation_gain_meters, calories, cadence, gpx_data, source
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `);
+    const workoutId = result.lastInsertRowid as number;
 
-    const insertExercise = db.prepare(`
-      INSERT INTO workout_exercises (workout_id, exercise_name, muscle_group, order_index, notes)
-      VALUES (?, ?, ?, ?, ?)
-    `);
+    // If started from template, pre-populate exercises
+    if (templateId) {
+      const templateExs = db.prepare(
+        "SELECT * FROM template_exercises WHERE template_id = ? ORDER BY order_index"
+      ).all(templateId) as { exercise_id: number; sets: number; target_reps: string; target_weight: number; rest_seconds: number; order_index: number }[];
 
-    const insertSet = db.prepare(`
-      INSERT INTO exercise_sets (workout_exercise_id, set_number, reps, weight_kg, duration_seconds)
-      VALUES (?, ?, ?, ?, ?)
-    `);
+      for (const te of templateExs) {
+        const weResult = db.prepare(
+          "INSERT INTO workout_exercises (workout_id, exercise_id, order_index) VALUES (?, ?, ?)"
+        ).run(workoutId, te.exercise_id, te.order_index);
+        const weId = weResult.lastInsertRowid as number;
 
-    const run = db.transaction(() => {
-      const result = insert.run(
-        userId,
-        type,
-        (title || "").slice(0, 200),
-        (notes || "").slice(0, 2000),
-        new Date(started_at).toISOString(),
-        Math.round(duration_seconds),
-        distance_meters ?? null,
-        avg_pace_seconds_per_km ?? null,
-        avg_heart_rate ?? null,
-        max_heart_rate ?? null,
-        elevation_gain_meters ?? null,
-        calories ?? null,
-        cadence ?? null,
-        gpx_data ?? null,
-        source || "manual",
-      );
-      const workoutId = result.lastInsertRowid as number;
-
-      if (Array.isArray(exercises)) {
-        for (const ex of exercises) {
-          if (!ex.exercise_name?.trim()) continue;
-          const exResult = insertExercise.run(
-            workoutId,
-            String(ex.exercise_name).slice(0, 100).trim(),
-            ex.muscle_group ? String(ex.muscle_group).slice(0, 50) : null,
-            ex.order_index ?? 0,
-            ex.notes ? String(ex.notes).slice(0, 500) : null,
-          );
-          const exerciseId = exResult.lastInsertRowid as number;
-
-          if (Array.isArray(ex.sets)) {
-            for (const s of ex.sets) {
-              insertSet.run(
-                exerciseId,
-                s.set_number ?? 1,
-                s.reps ?? null,
-                s.weight_kg ?? null,
-                s.duration_seconds ?? null,
-              );
-            }
-          }
+        for (let i = 1; i <= te.sets; i++) {
+          db.prepare(
+            "INSERT INTO workout_sets (workout_exercise_id, set_number, weight, reps) VALUES (?, ?, ?, ?)"
+          ).run(weId, i, te.target_weight ?? null, te.target_reps ? parseInt(te.target_reps) : null);
         }
       }
+    }
 
-      return workoutId;
-    });
-
-    const workoutId = run();
-
-    checkWorkoutAchievements(userId, workoutId);
-    if (type === "run") checkPersonalRecords(userId, workoutId);
-
-    const { xpEarned, newLevel, leveledUp } = awardXp(userId, {
-      type,
-      duration_seconds: Math.round(duration_seconds),
-      distance_meters: distance_meters ?? null,
-      exercise_count: Array.isArray(exercises) ? exercises.length : 0,
-    });
-
-    return res.status(201).json({ id: workoutId, xpEarned, newLevel, leveledUp });
+    return res.status(201).json({ id: workoutId });
   }
 
   res.status(405).end();

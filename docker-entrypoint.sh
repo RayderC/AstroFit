@@ -1,10 +1,10 @@
 #!/bin/sh
 set -e
 
-CONFIG_DIRECTORY="${CONFIG_DIRECTORY:-/config}"
-SECRET_FILE="$CONFIG_DIRECTORY/.session_secret"
+CONFIG_DIR="${CONFIG_DIR:-/config}"
+SECRET_FILE="$CONFIG_DIR/.session_secret"
 
-mkdir -p "$CONFIG_DIRECTORY" /Manga /Comics
+mkdir -p "$CONFIG_DIR"
 
 if [ -z "${SESSION_SECRET:-}" ]; then
   if [ ! -s "$SECRET_FILE" ]; then

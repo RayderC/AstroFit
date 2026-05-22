@@ -11,10 +11,16 @@ declare module "iron-session" {
 const isBuild = process.env.NEXT_PHASE === "phase-production-build";
 const isDev = process.env.NODE_ENV !== "production";
 
-const sessionPassword = process.env.SESSION_SECRET ||
+const sessionPassword =
+  process.env.SESSION_SECRET ||
   (isBuild || isDev ? "build_time_placeholder_secret_at_least_32_chars" : "");
 
-if (!isBuild && !isDev && (!sessionPassword || sessionPassword === "build_time_placeholder_secret_at_least_32_chars")) {
+if (
+  !isBuild &&
+  !isDev &&
+  (!sessionPassword ||
+    sessionPassword === "build_time_placeholder_secret_at_least_32_chars")
+) {
   throw new Error(
     "SESSION_SECRET environment variable must be set to a random string of at least 32 characters in production"
   );
@@ -25,15 +31,8 @@ if (!sessionPassword || sessionPassword.length < 32) {
 }
 
 const secureCookieEnv = process.env.SESSION_COOKIE_SECURE;
-const secureCookie = secureCookieEnv == null ? !isDev : secureCookieEnv === "true";
-
-if (!isBuild && !isDev && !secureCookie) {
-  console.warn(
-    "[session] WARNING: SESSION_COOKIE_SECURE=false. " +
-    "Session cookies will be sent over HTTP. " +
-    "Only use this on a trusted local network."
-  );
-}
+const secureCookie =
+  secureCookieEnv == null ? !isDev : secureCookieEnv === "true";
 
 export const sessionOptions: SessionOptions = {
   password: sessionPassword,

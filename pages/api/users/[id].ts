@@ -1,103 +1,56 @@
 import type { NextApiRequest, NextApiResponse } from "next";
-import db, { adminCount } from "../../../lib/db";
-import bcrypt from "bcryptjs";
 import { getIronSession } from "iron-session";
-import { sessionOptions, User } from "../../../lib/session";
-import { checkCsrf } from "../../../lib/csrf";
-
-export const config = { api: { bodyParser: { sizeLimit: "16kb" } } };
+import { sessionOptions, User } from "@/lib/session";
+import db from "@/lib/db";
+import bcrypt from "bcryptjs";
+import { checkCsrf } from "@/lib/csrf";
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
-  if (!checkCsrf(req)) { res.status(403).json({ message: "Forbidden" }); return; }
-
   const session = await getIronSession<{ user?: User }>(req, res, sessionOptions);
-  if (!session.user?.isAdmin) {
-    res.status(403).json({ message: "Forbidden" });
-    return;
-  }
+  if (!session.user?.isAdmin) return res.status(403).json({ message: "Forbidden" });
 
   const id = Number(req.query.id);
-  if (!Number.isFinite(id)) {
-    res.status(400).json({ message: "Invalid id" });
-    return;
-  }
+  if (isNaN(id)) return res.status(400).json({ message: "Invalid id" });
 
-  if (req.method === "DELETE") {
-    // Atomic check-then-delete so two parallel requests can't both remove the last admin.
-    const result = db.transaction(() => {
-      const target = db.prepare("SELECT is_admin FROM users WHERE id = ?").get(id) as { is_admin: number } | undefined;
-      if (!target) return "not_found";
-      if (target.is_admin === 1 && adminCount() <= 1) return "last_admin";
-      db.prepare("DELETE FROM users WHERE id = ?").run(id);
-      return "ok";
-    })();
+  const user = db.prepare(
+    "SELECT id, username, is_admin, xp, level, streak_days, created_at FROM users WHERE id = ?"
+  ).get(id) as { id: number; username: string; is_admin: number } | undefined;
+  if (!user) return res.status(404).json({ message: "User not found" });
 
-    if (result === "not_found") { res.status(404).json({ message: "User not found" }); return; }
-    if (result === "last_admin") { res.status(400).json({ message: "Cannot delete the last remaining admin" }); return; }
-    res.json({ ok: true });
-    return;
+  if (req.method === "GET") {
+    return res.json(user);
   }
 
   if (req.method === "PATCH") {
-    const { username, password, isAdmin } = req.body ?? {};
+    if (!checkCsrf(req)) return res.status(403).json({ message: "Forbidden" });
+    const { isAdmin, newPassword } = req.body as { isAdmin?: boolean; newPassword?: string };
 
-    // Validate and prepare values before entering the transaction (bcrypt is slow).
-    let cleanUsername: string | undefined;
-    let hashedPassword: string | undefined;
-
-    if (username && typeof username === "string") {
-      cleanUsername = username.trim().toLowerCase();
-      if (cleanUsername.length < 2 || cleanUsername.length > 50) {
-        res.status(400).json({ message: "Username must be 2–50 characters" });
-        return;
-      }
+    if (id === session.user.id && isAdmin === false) {
+      return res.status(400).json({ message: "Cannot remove your own admin status" });
     }
 
-    if (password && typeof password === "string") {
-      if (password.length < 8 || password.length > 200) {
-        res.status(400).json({ message: "Password must be 8–200 characters" });
-        return;
-      }
-      hashedPassword = bcrypt.hashSync(password, 10);
+    const setClauses: string[] = [];
+    const params: any[] = [];
+
+    if (isAdmin !== undefined) { setClauses.push("is_admin = ?"); params.push(isAdmin ? 1 : 0); }
+    if (newPassword) {
+      if (newPassword.length < 8) return res.status(400).json({ message: "Password must be at least 8 characters" });
+      const hash = bcrypt.hashSync(newPassword, 12);
+      setClauses.push("password = ?");
+      params.push(hash);
     }
 
-    if (cleanUsername === undefined && hashedPassword === undefined && typeof isAdmin !== "boolean") {
-      res.status(400).json({ message: "Nothing to update" });
-      return;
-    }
+    if (setClauses.length === 0) return res.status(400).json({ message: "Nothing to update" });
+    params.push(id);
+    db.prepare(`UPDATE users SET ${setClauses.join(", ")} WHERE id = ?`).run(...params);
+    return res.json({ ok: true });
+  }
 
-    // Atomic check-then-update so two parallel requests can't both demote the last admin.
-    const result = db.transaction(() => {
-      const target = db.prepare("SELECT id, is_admin FROM users WHERE id = ?").get(id) as
-        | { id: number; is_admin: number }
-        | undefined;
-      if (!target) return "not_found";
-
-      if (typeof isAdmin === "boolean" && !isAdmin && target.is_admin === 1 && adminCount() <= 1) {
-        return "last_admin";
-      }
-
-      // Column names are hardcoded literals, not user input — safe to interpolate.
-      const sets: string[] = [];
-      const vals: unknown[] = [];
-      if (cleanUsername !== undefined) { sets.push("username = ?"); vals.push(cleanUsername); }
-      if (hashedPassword !== undefined) { sets.push("password = ?"); vals.push(hashedPassword); }
-      if (typeof isAdmin === "boolean") { sets.push("is_admin = ?"); vals.push(isAdmin ? 1 : 0); }
-
-      try {
-        db.prepare(`UPDATE users SET ${sets.join(", ")} WHERE id = ?`).run(...vals, id);
-      } catch {
-        return "username_taken";
-      }
-      return "ok";
-    })();
-
-    if (result === "not_found") { res.status(404).json({ message: "User not found" }); return; }
-    if (result === "last_admin") { res.status(400).json({ message: "Cannot remove admin from the last remaining admin" }); return; }
-    if (result === "username_taken") { res.status(400).json({ message: "Username already taken" }); return; }
-
-    res.json({ ok: true });
-    return;
+  if (req.method === "DELETE") {
+    if (!checkCsrf(req)) return res.status(403).json({ message: "Forbidden" });
+    if (id === session.user.id) return res.status(400).json({ message: "Cannot delete your own account" });
+    db.prepare("DELETE FROM users WHERE id = ?").run(id);
+    return res.json({ ok: true });
   }
 
   res.status(405).end();

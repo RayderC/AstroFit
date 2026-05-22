@@ -1,5 +1,0 @@
-# Normalize all text files to LF on commit
-* text=auto
-
-# Shell scripts must always be LF so they run correctly in Docker/Linux
-*.sh text eol=lf
