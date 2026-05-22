@@ -33,14 +33,24 @@ const NODES: [number, number, string][] = [
 export default function LoginPage() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [checkingSetup, setCheckingSetup] = useState(true);
   const router = useRouter();
 
   useEffect(() => {
     fetch("/api/setup")
       .then(r => r.json())
-      .then(d => { if (d?.needsSetup) router.replace("/setup"); })
-      .catch(() => {});
+      .then(d => {
+        if (d?.needsSetup) router.replace("/setup");
+        else setCheckingSetup(false);
+      })
+      .catch(() => setCheckingSetup(false));
   }, [router]);
+
+  if (checkingSetup) return (
+    <div className="auth-page">
+      <div className="auth-card" style={{ textAlign: "center", color: "var(--text-muted)" }}>Loading…</div>
+    </div>
+  );
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();

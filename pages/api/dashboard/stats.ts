@@ -25,7 +25,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   `).get(uid, weekStart) as { v: number };
 
   const cardioRow = db.prepare(
-    "SELECT COALESCE(SUM(distance_km), 0) as km, COUNT(*) as cnt FROM cardio_activities WHERE user_id = ? AND created_at >= ?"
+    "SELECT COALESCE(SUM(distance_km), 0) as km, COUNT(*) as cnt FROM cardio_activities WHERE user_id = ? AND started_at >= ?"
   ).get(uid, weekStart) as { km: number; cnt: number };
 
   const xpRow = db.prepare(

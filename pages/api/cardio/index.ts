@@ -14,10 +14,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const limit = Math.min(Number(req.query.limit) || 20, 100);
     const offset = Number(req.query.offset) || 0;
     const activities = db.prepare(`
-      SELECT id, type, distance_km, duration_seconds, pace_per_km, notes, xp_earned, created_at
+      SELECT id, type, distance_km, duration_seconds, pace_per_km, notes, xp_earned, started_at
       FROM cardio_activities
       WHERE user_id = ?
-      ORDER BY created_at DESC
+      ORDER BY started_at DESC
       LIMIT ? OFFSET ?
     `).all(uid, limit, offset);
     return res.json(activities);
