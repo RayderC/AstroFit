@@ -126,7 +126,6 @@ export default async function HomePage() {
         <div style={{ display: "flex", gap: 10, marginBottom: 40 }}>
           <Link href="/workouts/log/run" className="btn btn-primary" style={{ flex: 1, justifyContent: "center", letterSpacing: "0.05em" }}>+ Run</Link>
           <Link href="/workouts/log/strength" className="btn btn-primary" style={{ flex: 1, justifyContent: "center", letterSpacing: "0.05em" }}>+ Strength</Link>
-          <Link href="/workouts/log" className="btn btn-secondary" style={{ flex: 1, justifyContent: "center" }}>Other</Link>
         </div>
 
         {/* Mission log */}
