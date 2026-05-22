@@ -43,12 +43,6 @@ export default function Navigation() {
     { href: "/", label: "Home", active: pathname === "/" },
     ...(isLoggedIn ? [
       { href: "/workouts", label: "Workouts", active: pathname.startsWith("/workouts") },
-      { href: "/stats", label: "Stats", active: pathname.startsWith("/stats") },
-      { href: "/goals", label: "Goals", active: pathname.startsWith("/goals") },
-      { href: "/achievements", label: "Achievements", active: pathname.startsWith("/achievements") },
-      { href: "/body", label: "Body", active: pathname.startsWith("/body") },
-      { href: "/nutrition", label: "Nutrition", active: pathname.startsWith("/nutrition") },
-      { href: "/plans", label: "Plans", active: pathname.startsWith("/plans") },
     ] : []),
     ...(isAdmin ? [{ href: "/dashboard", label: "Admin", active: pathname.startsWith("/dashboard") }] : []),
   ];
@@ -129,29 +123,6 @@ export default function Navigation() {
           </div>
         )}
       </div>
-
-      {/* Mobile bottom navigation */}
-      {isLoggedIn && (
-        <nav className="mobile-bottom-nav">
-          <div className="mobile-bottom-nav-inner">
-            <Link href="/" className={`mobile-bottom-nav-item${pathname === "/" ? " active" : ""}`}>
-              <span>🏠</span><span>Home</span>
-            </Link>
-            <Link href="/workouts" className={`mobile-bottom-nav-item${pathname.startsWith("/workouts") && !pathname.startsWith("/workouts/log") ? " active" : ""}`}>
-              <span>💪</span><span>Workouts</span>
-            </Link>
-            <Link href="/workouts/log" className={`mobile-bottom-nav-item${pathname.startsWith("/workouts/log") ? " active" : ""}`} style={{ color: "var(--primary-light)" }}>
-              <span style={{ fontSize: 28, lineHeight: 1 }}>＋</span><span>Log</span>
-            </Link>
-            <Link href="/stats" className={`mobile-bottom-nav-item${pathname.startsWith("/stats") ? " active" : ""}`}>
-              <span>📊</span><span>Stats</span>
-            </Link>
-            <Link href="/profile" className={`mobile-bottom-nav-item${pathname.startsWith("/profile") ? " active" : ""}`}>
-              <span>👤</span><span>Profile</span>
-            </Link>
-          </div>
-        </nav>
-      )}
     </>
   );
 }

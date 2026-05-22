@@ -27,7 +27,7 @@ db.exec(`
     password TEXT NOT NULL DEFAULT '',
     email TEXT NOT NULL DEFAULT '',
     is_admin INTEGER NOT NULL DEFAULT 0,
-    unit_preference TEXT NOT NULL DEFAULT 'km',
+    unit_preference TEXT NOT NULL DEFAULT 'mi',
     created_at TEXT NOT NULL DEFAULT (datetime('now'))
   );
 
