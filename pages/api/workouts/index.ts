@@ -4,6 +4,7 @@ import { getIronSession } from "iron-session";
 import { sessionOptions, User } from "../../../lib/session";
 import { checkCsrf } from "../../../lib/csrf";
 import { checkWorkoutAchievements, checkPersonalRecords } from "../../../lib/achievements";
+import { awardXp } from "../../../lib/xp";
 
 export const config = { api: { bodyParser: { sizeLimit: "8mb" } } };
 
@@ -123,7 +124,14 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     checkWorkoutAchievements(userId, workoutId);
     if (type === "run") checkPersonalRecords(userId, workoutId);
 
-    return res.status(201).json({ id: workoutId });
+    const { xpEarned, newLevel, leveledUp } = awardXp(userId, {
+      type,
+      duration_seconds: Math.round(duration_seconds),
+      distance_meters: distance_meters ?? null,
+      exercise_count: Array.isArray(exercises) ? exercises.length : 0,
+    });
+
+    return res.status(201).json({ id: workoutId, xpEarned, newLevel, leveledUp });
   }
 
   res.status(405).end();

@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 
@@ -36,32 +35,86 @@ export default function Login() {
     if (res.ok) {
       router.push("/");
     } else {
-      setError((await res.json()).message || "Login failed");
+      setError((await res.json()).message || "Authentication failed");
     }
   }
 
   return (
     <div className="auth-page">
       <div className="auth-card">
-        <Link href="/" className="auth-logo">AstroFit</Link>
-        <h1 className="auth-title">Welcome back</h1>
-        <p className="auth-subtitle">Sign in to access your fitness dashboard</p>
+        <div className="auth-eyebrow">The System</div>
+        <div className="auth-logo">AstroFit</div>
+        <h1 className="auth-title">Hunter Identification</h1>
+        <p className="auth-subtitle">// authentication required</p>
 
         <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: "18px" }}>
-          {error && <p className="form-error">{error}</p>}
+          {error && (
+            <div style={{
+              padding: "10px 14px",
+              background: "rgba(239,68,68,0.08)",
+              border: "1px solid rgba(239,68,68,0.25)",
+              borderRadius: "var(--radius-sm)",
+              color: "var(--danger)",
+              fontSize: "13px",
+              fontFamily: "var(--font-mono)",
+            }}>
+              ⚠ {error}
+            </div>
+          )}
 
           <div className="form-group">
-            <label className="form-label" htmlFor="username">Username</label>
-            <input type="text" id="username" name="username" className="form-input" placeholder="athlete" autoComplete="username" required />
+            <label className="form-label" htmlFor="username" style={{ fontFamily: "var(--font-mono)", color: "var(--primary-light)" }}>
+              Hunter ID
+            </label>
+            <input
+              type="text"
+              id="username"
+              name="username"
+              className="form-input"
+              placeholder="enter username"
+              autoComplete="username"
+              required
+              style={{ fontFamily: "var(--font-mono)" }}
+            />
           </div>
 
           <div className="form-group">
-            <label className="form-label" htmlFor="password">Password</label>
-            <input type="password" id="password" name="password" className="form-input" placeholder="••••••••" autoComplete="current-password" required />
+            <label className="form-label" htmlFor="password" style={{ fontFamily: "var(--font-mono)", color: "var(--primary-light)" }}>
+              Access Code
+            </label>
+            <input
+              type="password"
+              id="password"
+              name="password"
+              className="form-input"
+              placeholder="••••••••"
+              autoComplete="current-password"
+              required
+              style={{ fontFamily: "var(--font-mono)" }}
+            />
           </div>
 
-          <button type="submit" className="btn btn-primary" disabled={loading} style={{ marginTop: "4px" }}>
-            {loading ? "Signing in…" : "Sign In"}
+          <button
+            type="submit"
+            disabled={loading}
+            style={{
+              marginTop: "8px",
+              padding: "12px",
+              background: loading ? "rgba(168,85,247,0.2)" : "linear-gradient(135deg, var(--primary) 0%, #5b1a8a 100%)",
+              color: "#fff",
+              border: "1px solid rgba(168,85,247,0.5)",
+              borderRadius: "var(--radius-sm)",
+              fontWeight: 700,
+              fontSize: "13px",
+              letterSpacing: "0.15em",
+              textTransform: "uppercase",
+              fontFamily: "var(--font-mono)",
+              cursor: loading ? "not-allowed" : "pointer",
+              transition: "all 0.15s",
+              boxShadow: loading ? "none" : "0 0 20px rgba(168,85,247,0.3)",
+            }}
+          >
+            {loading ? "Verifying…" : "Enter The System"}
           </button>
         </form>
       </div>

@@ -308,7 +308,10 @@ db.exec(`
 `);
 
 // Inline idempotent migrations for upgrading existing installs.
-const migrations: string[] = [];
+const migrations: string[] = [
+  "ALTER TABLE user_xp ADD COLUMN streak INTEGER NOT NULL DEFAULT 0",
+  "ALTER TABLE user_xp ADD COLUMN last_workout_date TEXT",
+];
 
 if (!isBuildPhase) {
   for (const sql of migrations) {

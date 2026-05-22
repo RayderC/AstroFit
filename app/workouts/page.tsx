@@ -28,9 +28,11 @@ export default async function WorkoutsPage() {
     avg_pace_seconds_per_km: number | null; calories: number | null; elevation_gain_meters: number | null;
   }[];
 
+  const xpRow = db.prepare("SELECT level FROM user_xp WHERE user_id = ?").get(userId) as { level: number } | undefined;
+
   return (
     <div>
-      <Navigation />
+      <Navigation level={xpRow?.level ?? 1} />
       <WorkoutsClient workouts={workouts} unit={unit} />
     </div>
   );

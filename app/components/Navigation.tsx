@@ -5,7 +5,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { siteConfig as defaults } from "../../lib/siteConfig";
 
-export default function Navigation() {
+export default function Navigation({ level }: { level?: number }) {
   const pathname = usePathname() ?? "";
   const router = useRouter();
   const [isAdmin, setIsAdmin] = useState(false);
@@ -13,6 +13,7 @@ export default function Navigation() {
   const [username, setUsername] = useState("");
   const [siteName, setSiteName] = useState(defaults.name);
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const [userLevel, setUserLevel] = useState(level ?? 0);
 
   useEffect(() => {
     fetch("/api/user")
@@ -22,6 +23,7 @@ export default function Navigation() {
           setIsLoggedIn(true);
           setUsername(data.username || "");
           if (data.isAdmin) setIsAdmin(true);
+          if (data.level) setUserLevel(data.level);
         }
       })
       .catch(() => {});
@@ -47,6 +49,8 @@ export default function Navigation() {
     ...(isAdmin ? [{ href: "/dashboard", label: "Admin", active: pathname.startsWith("/dashboard") }] : []),
   ];
 
+  const displayLevel = level ?? userLevel;
+
   return (
     <>
       <nav className="nav">
@@ -70,6 +74,9 @@ export default function Navigation() {
           <div className="nav-actions">
             {isLoggedIn && (
               <>
+                {displayLevel > 0 && (
+                  <span className="nav-level-chip">Lv {displayLevel}</span>
+                )}
                 <Link
                   href="/profile"
                   className={`nav-profile-btn${pathname.startsWith("/profile") ? " active" : ""}`}
@@ -111,7 +118,8 @@ export default function Navigation() {
         {isLoggedIn ? (
           <div className="nav-mobile-user">
             <Link href="/profile" className={`nav-mobile-link${pathname.startsWith("/profile") ? " active" : ""}`}>
-              <span className="nav-profile-icon">◉</span> {username} — Profile
+              <span className="nav-profile-icon">◉</span> {username}
+              {displayLevel > 0 && <span className="nav-level-chip" style={{ marginLeft: 8 }}>Lv {displayLevel}</span>}
             </Link>
             <button onClick={handleLogout} className="btn btn-ghost btn-sm" style={{ width: "100%", marginTop: "8px" }}>
               Log out

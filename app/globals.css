@@ -25,6 +25,10 @@
   --radius-lg: 16px;
   --shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
   --font-mono: 'JetBrains Mono', 'Fira Code', 'SFMono-Regular', 'Consolas', monospace;
+  --gold: #f59e0b;
+  --gold-light: #fbbf24;
+  --gold-glow: rgba(245, 158, 11, 0.15);
+  --gold-border: rgba(245, 158, 11, 0.3);
 }
 
 *, *::before, *::after {
@@ -345,70 +349,76 @@ body > * { position: relative; z-index: 2; }
   justify-content: center;
   padding: 24px;
   background:
-    radial-gradient(ellipse 60% 50% at 50% -10%, rgba(124, 14, 179, 0.18) 0%, transparent 70%),
-    radial-gradient(ellipse 50% 40% at 100% 110%, rgba(34, 211, 238, 0.10) 0%, transparent 70%),
+    radial-gradient(ellipse 70% 50% at 50% 0%, rgba(124, 14, 179, 0.22) 0%, transparent 65%),
+    radial-gradient(ellipse 40% 40% at 0% 100%, rgba(168, 85, 247, 0.08) 0%, transparent 60%),
     var(--bg);
 }
 
 .auth-card {
-  background: var(--surface);
-  border: 1px solid var(--border-bright);
+  background: rgba(17, 17, 24, 0.95);
+  border: 1px solid rgba(168, 85, 247, 0.35);
   border-radius: var(--radius-lg);
   padding: 44px 40px;
   width: 100%;
-  max-width: 420px;
-  box-shadow: var(--shadow), 0 0 60px rgba(168, 85, 247, 0.12);
+  max-width: 400px;
+  box-shadow: 0 0 0 1px rgba(168,85,247,0.08), 0 0 60px rgba(168, 85, 247, 0.18), 0 24px 64px rgba(0,0,0,0.6);
   position: relative;
-  overflow: hidden;
-}
-/* Corner brackets â€” L-shape accents in cyan + magenta. */
-.auth-card::before,
-.auth-card::after {
-  content: '';
-  position: absolute;
-  width: 22px;
-  height: 22px;
-  pointer-events: none;
 }
 .auth-card::before {
-  top: 10px; left: 10px;
-  border-top: 1px solid var(--accent-cyan);
-  border-left: 1px solid var(--accent-cyan);
-  box-shadow: -2px -2px 12px rgba(34, 211, 238, 0.25);
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: var(--radius-lg);
+  background: linear-gradient(135deg, rgba(168,85,247,0.04) 0%, transparent 50%);
+  pointer-events: none;
 }
-.auth-card::after {
-  bottom: 10px; right: 10px;
-  border-bottom: 1px solid var(--accent-magenta);
-  border-right: 1px solid var(--accent-magenta);
-  box-shadow: 2px 2px 12px rgba(244, 114, 182, 0.2);
+
+.auth-eyebrow {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--primary-light);
+  font-family: var(--font-mono);
+  margin-bottom: 20px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.auth-eyebrow::before {
+  content: '';
+  display: block;
+  width: 20px;
+  height: 1px;
+  background: var(--primary-light);
 }
 
 .auth-logo {
-  font-size: 22px;
-  font-weight: 700;
-  background: linear-gradient(135deg, #22d3ee 0%, #c084fc 50%, #7c0eb3 100%);
+  font-size: 28px;
+  font-weight: 800;
+  background: linear-gradient(135deg, #c084fc 0%, #a855f7 50%, #7c0eb3 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
-  margin-bottom: 28px;
+  margin-bottom: 6px;
   display: block;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  font-family: var(--font-mono);
-  animation: neonFlicker 6s ease-in-out infinite;
+  letter-spacing: -0.02em;
 }
 
 .auth-title {
-  font-size: 24px;
-  font-weight: 700;
-  letter-spacing: -0.02em;
-  margin-bottom: 6px;
+  font-size: 20px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  margin-bottom: 4px;
+  color: var(--text);
 }
 
 .auth-subtitle {
-  color: var(--text-muted);
-  font-size: 14px;
-  margin-bottom: 28px;
+  color: var(--text-subtle);
+  font-size: 13px;
+  margin-bottom: 32px;
+  font-family: var(--font-mono);
+  letter-spacing: 0.03em;
 }
 
 .auth-link { color: var(--primary-light); transition: color 0.15s; }
@@ -2953,4 +2963,152 @@ body > * { position: relative; z-index: 2; }
 @media (max-width: 640px) {
   .projects-page-inner { padding: 32px 16px 60px; }
   .projects-page-title { font-size: 28px; }
+}
+
+/* ===================== SOLO LEVELING: LEVEL BADGE ===================== */
+
+.level-badge {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+
+.level-badge-label {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.25em;
+  text-transform: uppercase;
+  color: var(--gold);
+  font-family: var(--font-mono);
+}
+
+.level-badge-number {
+  font-size: 80px;
+  font-weight: 900;
+  line-height: 1;
+  letter-spacing: -0.04em;
+  background: linear-gradient(135deg, var(--gold-light) 0%, var(--gold) 50%, #d97706 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  filter: drop-shadow(0 0 20px rgba(245, 158, 11, 0.4));
+}
+
+.level-badge-sub {
+  font-size: 11px;
+  color: var(--text-subtle);
+  font-family: var(--font-mono);
+  letter-spacing: 0.08em;
+}
+
+/* ===================== SOLO LEVELING: XP BAR ===================== */
+
+.xp-bar-wrap {
+  width: 100%;
+}
+
+.xp-bar-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: 8px;
+}
+
+.xp-bar-label {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: var(--gold);
+  font-family: var(--font-mono);
+}
+
+.xp-bar-value {
+  font-size: 13px;
+  font-family: var(--font-mono);
+  color: var(--text-muted);
+}
+
+.xp-bar-track {
+  height: 8px;
+  background: rgba(245, 158, 11, 0.1);
+  border: 1px solid rgba(245, 158, 11, 0.2);
+  border-radius: 100px;
+  overflow: hidden;
+}
+
+.xp-bar-fill {
+  height: 100%;
+  border-radius: 100px;
+  background: linear-gradient(90deg, var(--gold) 0%, var(--gold-light) 100%);
+  box-shadow: 0 0 12px rgba(245, 158, 11, 0.5);
+  transition: width 0.6s ease;
+}
+
+/* ===================== SOLO LEVELING: STREAK PANEL ===================== */
+
+.streak-panel {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 20px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+
+.streak-panel-fire {
+  font-size: 28px;
+  line-height: 1;
+}
+
+.streak-panel-count {
+  font-size: 28px;
+  font-weight: 800;
+  font-family: var(--font-mono);
+  letter-spacing: -0.03em;
+  color: #fb923c;
+  line-height: 1;
+}
+
+.streak-panel-label {
+  font-size: 12px;
+  color: var(--text-subtle);
+  margin-top: 2px;
+}
+
+/* ===================== SOLO LEVELING: MISSION LOG ===================== */
+
+.mission-log-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 14px;
+}
+
+.mission-log-title {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+}
+
+/* ===================== SOLO LEVELING: NAV LEVEL CHIP ===================== */
+
+.nav-level-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  background: var(--gold-glow);
+  border: 1px solid var(--gold-border);
+  border-radius: 100px;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--gold);
+  font-family: var(--font-mono);
+  letter-spacing: 0.05em;
 }
