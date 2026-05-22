@@ -9,10 +9,6 @@ import Navigation from "../components/Navigation";
 import Link from "next/link";
 import WorkoutsClient from "./WorkoutsClient";
 
-function workoutIcon(type: string) {
-  return type === "run" ? "🏃" : type === "strength" ? "💪" : type === "cycling" ? "🚴" : "⚡";
-}
-
 export default async function WorkoutsPage() {
   const session = await getIronSession<{ user?: { id: number; username: string } }>(
     await cookies(), sessionOptions
@@ -35,7 +31,7 @@ export default async function WorkoutsPage() {
   return (
     <div>
       <Navigation />
-      <WorkoutsClient workouts={workouts} unit={unit} workoutIcon={workoutIcon} />
+      <WorkoutsClient workouts={workouts} unit={unit} />
     </div>
   );
 }

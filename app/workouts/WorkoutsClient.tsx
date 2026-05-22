@@ -19,7 +19,10 @@ interface Workout {
 interface Props {
   workouts: Workout[];
   unit: string;
-  workoutIcon: (type: string) => string;
+}
+
+function workoutIcon(type: string) {
+  return type === "run" ? "🏃" : type === "strength" ? "💪" : type === "cycling" ? "🚴" : "⚡";
 }
 
 function formatDuration(s: number) {
@@ -69,7 +72,7 @@ const TYPE_FILTERS = [
   { key: "cycling", label: "🚴 Cycling" },
 ] as const;
 
-export default function WorkoutsClient({ workouts, unit, workoutIcon }: Props) {
+export default function WorkoutsClient({ workouts, unit }: Props) {
   const [view, setView] = useState<"feed" | "calendar">("feed");
   const [typeFilter, setTypeFilter] = useState<string>("all");
   const [monthOffset, setMonthOffset] = useState(0);
