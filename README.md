@@ -1,24 +1,23 @@
-# ComicOrbit
+# AstroFit
 
-**Self-hosted manga & comic library.** Search, download, and read CBZ archives from your own server — no subscriptions, no tracking.
+**Self-hosted fitness tracker with Solo Leveling RPG progression.** Log workouts, earn XP, level up — no subscriptions, no tracking.
 
-[![Docker Hub](https://img.shields.io/docker/v/rayderc/comicorbit?label=Docker%20Hub&logo=docker)](https://hub.docker.com/r/rayderc/comicorbit)
-[![GitHub](https://img.shields.io/badge/GitHub-RayderC%2FComicOrbit-181717?logo=github)](https://github.com/RayderC/ComicOrbit)
+[![Docker Hub](https://img.shields.io/docker/v/rayderc/astrofit?label=Docker%20Hub&logo=docker)](https://hub.docker.com/r/rayderc/astrofit)
+[![GitHub](https://img.shields.io/badge/GitHub-RayderC%2FAstroFit-181717?logo=github)](https://github.com/RayderC/AstroFit)
 
 ---
 
 ## Features
 
-- **Netflix-style home page** — Continue Reading, Recently Added, and Favorites rows
-- **Login-gated** — every page requires authentication; first launch auto-redirects to account setup
-- **Download from MangaDex, MangaFreak, and GetComics** — MangaFreak is the default manga source; parallel page downloads with live progress
-- **Built-in reader** — CBZ pages streamed from disk; tap left/right to turn pages, tap the middle to toggle the toolbar; keyboard arrows also work
-- **Per-user read progress** — picks up exactly where you left off
-- **Favorites & custom collections** — star series and group them however you want
-- **Tag / type / status filters** in the full library view
-- **Multi-user** — admin creates additional accounts from the dashboard
-- **PWA / Add to Home Screen** — installs as a full-screen app on iOS and Android with a proper icon and offline shell
-- **Single-container Docker** — SQLite database, auto-generated session secret, bind-mount volumes for your files
+- **RPG progression system** — earn XP every workout, level up from 1 to 100, with streak bonuses up to +50% XP
+- **Solo Leveling aesthetic** — dark theme, gold level badge, glowing XP bar, "The System" login screen
+- **Run logging** — distance, pace, duration, elevation, calories, per-km splits
+- **Strength logging** — exercises, sets, reps, weight with live volume and estimated 1RM
+- **Mission log** — your workout history displayed as completed missions
+- **Streak tracking** — consecutive workout days tracked automatically
+- **Login-gated** — every page requires authentication; first launch auto-redirects to setup
+- **PWA / Add to Home Screen** — installs as a full-screen app on iOS and Android
+- **Single-container Docker** — SQLite database, bind-mount volume for persistence
 
 ---
 
@@ -27,24 +26,37 @@
 ```yaml
 # docker-compose.yml
 services:
-  comicorbit:
-    image: rayderc/comicorbit:latest
-    container_name: comicorbit
+  astrofit:
+    image: rayderc/astrofit:latest
+    container_name: astrofit
     restart: always
     ports:
-      - "7080:7080"
+      - "7090:7090"
     volumes:
-      - ./config:/config   # SQLite DB + session secret
-      - ./Manga:/Manga     # Downloaded manga chapters
-      - ./Comics:/Comics   # Downloaded comics
+      - ./config:/config
 ```
 
 ```bash
 docker compose up -d
-# then open http://localhost:7080
+# then open http://localhost:7090
 ```
 
-On first launch you'll be redirected to the **setup page** to create the admin account (pre-filled as `admin / admin` — change the password after you log in).
+On first launch you'll be redirected to `/setup` to create the admin account.
+
+---
+
+## XP System
+
+| Action | XP |
+|---|---|
+| Any workout (base) | 100 XP |
+| Per minute of activity | +2 XP (capped at 90 min) |
+| Per km run or cycled | +8 XP |
+| Per strength exercise | +10 XP |
+| 3–6 day streak bonus | +25% |
+| 7+ day streak bonus | +50% |
+
+1,000 XP = 1 level. Max level 100.
 
 ---
 
@@ -53,53 +65,21 @@ On first launch you'll be redirected to the **setup page** to create the admin a
 | Variable | Default | Purpose |
 |---|---|---|
 | `SESSION_SECRET` | auto-generated | Min 32 chars. Written to `/config/.session_secret` on first run if not set. |
-| `SESSION_COOKIE_SECURE` | `false` | Set to `true` if you put ComicOrbit behind a TLS-terminating reverse proxy (nginx, Traefik, etc). |
-| `DATABASE_PATH` | `/config/comicorbit.db` | SQLite file location. |
-| `CONFIG_DIRECTORY` | `/config` | Directory for the DB and session secret. |
-
----
-
-## Download sources
-
-| Source | Content | Method |
-|---|---|---|
-| **MangaFreak** | Manga | HTML scraping — default manga source |
-| **MangaDex** | Manga | Official REST API — English chapters |
-| **GetComics** | Western comics | Scrapes direct CBZ/CBR download links |
-
----
-
-## Disk layout
-
-```
-/config/
-  comicorbit.db          ← SQLite (users, series, chapters, queue, progress)
-  .session_secret        ← auto-generated 48-byte secret
-
-/Manga/
-  One Piece/
-    cover.jpg
-    One Piece - 1.cbz
-    One Piece - 2.cbz
-
-/Comics/
-  Batman/
-    cover.jpg
-    Batman - 1.cbz
-```
+| `SESSION_COOKIE_SECURE` | `false` | Set to `true` behind a TLS reverse proxy (nginx, Traefik, etc). |
+| `DATABASE_PATH` | `/config/astrofit.db` | SQLite file location. |
 
 ---
 
 ## Development
 
 ```bash
-git clone https://github.com/RayderC/ComicOrbit.git
-cd ComicOrbit
+git clone https://github.com/RayderC/AstroFit.git
+cd AstroFit
 npm install
-npm run dev        # http://localhost:7080
+npm run dev   # http://localhost:7090
 ```
 
-Requires Node.js 20+. The SQLite native module is compiled during `npm install`.
+Requires Node.js 20+.
 
 ---
 
@@ -108,8 +88,7 @@ Requires Node.js 20+. The SQLite native module is compiled during `npm install`.
 - **Next.js 16** (App Router + Pages Router) · **React 19** · **TypeScript**
 - **SQLite** via `better-sqlite3`
 - **iron-session** for encrypted cookie auth
-- **cheerio** for HTML scraping
-- Cyberpunk/amethyst theme
+- Solo Leveling / dark RPG theme
 
 ---
 
