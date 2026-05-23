@@ -1,6 +1,7 @@
 "use client";
 import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
+import { useUnits } from "@/app/context/UnitsContext";
 
 interface GpsPoint {
   lat: number;
@@ -23,6 +24,7 @@ const CARDIO_TYPES = ["Running", "Cycling", "Walking", "Hiking", "Other"];
 
 export default function GpsTrackPage() {
   const router = useRouter();
+  const { distanceUnit } = useUnits();
   const [activityType, setActivityType] = useState("Running");
   const [status, setStatus] = useState<"idle" | "tracking" | "paused" | "done">("idle");
   const [elapsed, setElapsed] = useState(0);
@@ -42,6 +44,8 @@ export default function GpsTrackPage() {
       if (elapsedIntervalRef.current) clearInterval(elapsedIntervalRef.current);
     };
   }, []);
+
+  const displayDistance = distanceUnit === "mi" ? distanceKm * 0.621371 : distanceKm;
 
   const startTracking = () => {
     if (!navigator.geolocation) {
@@ -74,9 +78,7 @@ export default function GpsTrackPage() {
           return next;
         });
       },
-      err => {
-        setGpsError(`GPS error: ${err.message}`);
-      },
+      err => { setGpsError(`GPS error: ${err.message}`); },
       { enableHighAccuracy: true, maximumAge: 0 }
     );
   };
@@ -95,13 +97,14 @@ export default function GpsTrackPage() {
 
   const saveActivity = async () => {
     setSaving(true);
+    const savedDistance = distanceUnit === "mi" ? displayDistance : distanceKm;
     const res = await fetch("/api/cardio", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         type: activityType,
         durationSeconds: elapsed,
-        distanceKm: distanceKm > 0 ? Math.round(distanceKm * 100) / 100 : undefined,
+        distanceKm: savedDistance > 0 ? Math.round(savedDistance * 100) / 100 : undefined,
         gpsData: points.length > 0 ? points : undefined,
       }),
     });
@@ -117,28 +120,28 @@ export default function GpsTrackPage() {
     return `${m}:${String(sec).padStart(2, "0")}`;
   };
 
-  const paceMinPerKm = distanceKm > 0 && elapsed > 0
-    ? elapsed / 60 / distanceKm
-    : null;
-  const formatPace = (p: number) => `${Math.floor(p)}:${String(Math.round((p % 1) * 60)).padStart(2, "0")}/km`;
+  const paceMinPerUnit = displayDistance > 0 && elapsed > 0 ? elapsed / 60 / displayDistance : null;
+  const formatPace = (p: number) => `${Math.floor(p)}:${String(Math.round((p % 1) * 60)).padStart(2, "0")}/${distanceUnit}`;
 
   return (
-    <div style={{ maxWidth: 480, margin: "0 auto" }}>
+    <div className="gps-tracker">
       <div style={{ marginBottom: 20 }}>
-        <button onClick={() => router.push("/dashboard/cardio")} style={{ background: "none", border: "none", color: "var(--text-muted)", cursor: "pointer", fontSize: "0.85rem", padding: 0 }}>
+        <button className="back-link" onClick={() => router.push("/dashboard/cardio")}>
           ← Cardio
         </button>
-        <h1 style={{ fontSize: "1.5rem", fontWeight: 700, marginTop: 4 }}>GPS Tracking</h1>
+        <h1 className="dash-title" style={{ marginTop: 8 }}>GPS Tracking</h1>
       </div>
 
       {status === "idle" && (
         <div className="card" style={{ marginBottom: 20 }}>
-          <label className="form-label">Activity Type</label>
-          <select className="form-input" value={activityType} onChange={e => setActivityType(e.target.value)} style={{ marginBottom: 16 }}>
-            {CARDIO_TYPES.map(t => <option key={t}>{t}</option>)}
-          </select>
-          {gpsError && <div style={{ color: "#f87171", fontSize: "0.85rem", marginBottom: 12 }}>{gpsError}</div>}
-          <button className="btn-success btn-lg" onClick={startTracking} style={{ width: "100%" }}>
+          <div className="form-group" style={{ marginBottom: 16 }}>
+            <label className="form-label">Activity Type</label>
+            <select className="form-select" value={activityType} onChange={e => setActivityType(e.target.value)}>
+              {CARDIO_TYPES.map(t => <option key={t}>{t}</option>)}
+            </select>
+          </div>
+          {gpsError && <div className="gps-error">{gpsError}</div>}
+          <button className="btn btn-success btn-lg btn-full" onClick={startTracking}>
             Start Tracking
           </button>
         </div>
@@ -147,75 +150,61 @@ export default function GpsTrackPage() {
       {(status === "tracking" || status === "paused" || status === "done") && (
         <>
           <div className="card" style={{ marginBottom: 20, textAlign: "center" }}>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 16, marginBottom: 16 }}>
+            <div className="gps-stats">
               <div>
-                <div style={{ fontSize: "2rem", fontWeight: 700, fontVariantNumeric: "tabular-nums", color: "var(--accent-cyan)" }}>
-                  {formatDuration(elapsed)}
-                </div>
-                <div style={{ fontSize: "0.78rem", color: "var(--text-muted)", textTransform: "uppercase" }}>Time</div>
+                <div className="gps-stat-value text-cyan">{formatDuration(elapsed)}</div>
+                <div className="gps-stat-label">Time</div>
               </div>
               <div>
-                <div style={{ fontSize: "2rem", fontWeight: 700, color: "var(--primary-light)" }}>
-                  {distanceKm.toFixed(2)}
-                </div>
-                <div style={{ fontSize: "0.78rem", color: "var(--text-muted)", textTransform: "uppercase" }}>km</div>
+                <div className="gps-stat-value text-purple">{displayDistance.toFixed(2)}</div>
+                <div className="gps-stat-label">{distanceUnit}</div>
               </div>
               <div>
-                <div style={{ fontSize: "2rem", fontWeight: 700, color: "var(--xp-color)" }}>
-                  {paceMinPerKm ? formatPace(paceMinPerKm) : "—"}
-                </div>
-                <div style={{ fontSize: "0.78rem", color: "var(--text-muted)", textTransform: "uppercase" }}>Pace</div>
+                <div className="gps-stat-value text-gold">{paceMinPerUnit ? formatPace(paceMinPerUnit) : "—"}</div>
+                <div className="gps-stat-label">Pace</div>
               </div>
             </div>
 
             {status === "tracking" && (
-              <div style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: "0.82rem", color: "#4ade80" }}>
-                <div style={{ width: 8, height: 8, borderRadius: "50%", background: "#4ade80", animation: "pulse 1.5s infinite" }} />
-                Tracking · {points.length} GPS points
+              <div className="gps-status">
+                <div className="gps-status-dot" style={{ background: "var(--success)" }} />
+                <span className="text-success">Tracking · {points.length} GPS points</span>
               </div>
             )}
             {status === "paused" && (
-              <div style={{ fontSize: "0.82rem", color: "var(--xp-color)" }}>Paused</div>
+              <div className="gps-status">
+                <span className="text-gold">Paused</span>
+              </div>
             )}
             {status === "done" && (
-              <div style={{ fontSize: "0.82rem", color: "var(--text-muted)" }}>Activity stopped</div>
+              <div className="gps-status">
+                <span className="text-muted">Activity stopped</span>
+              </div>
             )}
           </div>
 
-          {gpsError && (
-            <div style={{ color: "#f87171", fontSize: "0.85rem", marginBottom: 12, padding: "8px 12px", background: "rgba(248,113,113,0.1)", borderRadius: 8 }}>
-              {gpsError}
-            </div>
-          )}
+          {gpsError && <div className="gps-error">{gpsError}</div>}
 
-          <div style={{ display: "grid", gap: 10 }}>
+          <div className="gps-actions">
             {status === "tracking" && (
               <>
-                <button className="btn-secondary btn-lg" onClick={pauseTracking} style={{ width: "100%" }}>
-                  Pause
-                </button>
-                <button className="btn-danger btn-lg" onClick={stopTracking} style={{ width: "100%" }}>
-                  Stop & Save
-                </button>
+                <button className="btn btn-secondary btn-lg btn-full" onClick={pauseTracking}>Pause</button>
+                <button className="btn btn-danger btn-lg btn-full" onClick={stopTracking}>Stop & Save</button>
               </>
             )}
             {status === "paused" && (
               <>
-                <button className="btn-primary btn-lg" onClick={startTracking} style={{ width: "100%" }}>
-                  Resume
-                </button>
-                <button className="btn-danger" onClick={stopTracking} style={{ width: "100%" }}>
-                  Stop & Save
-                </button>
+                <button className="btn btn-primary btn-lg btn-full" onClick={startTracking}>Resume</button>
+                <button className="btn btn-danger btn-full" onClick={stopTracking}>Stop & Save</button>
               </>
             )}
             {status === "done" && (
-              <button className="btn-success btn-lg" onClick={saveActivity} disabled={saving} style={{ width: "100%" }}>
+              <button className="btn btn-success btn-lg btn-full" onClick={saveActivity} disabled={saving}>
                 {saving ? "Saving..." : `Save ${activityType}`}
               </button>
             )}
             {status !== "tracking" && (
-              <button className="btn-secondary" onClick={() => router.push("/dashboard/cardio")} style={{ width: "100%" }}>
+              <button className="btn btn-secondary btn-full" onClick={() => router.push("/dashboard/cardio")}>
                 Discard
               </button>
             )}

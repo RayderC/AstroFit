@@ -10,7 +10,7 @@ Self-hosted fitness tracker with XP levels, strength workout logging, cardio tra
 
 ## Features
 
-- **Strength training** — Create workout templates, run active sessions, log sets with weight and reps. Rest timer after each completed set.
+- **Strength training** — Create workout templates, run active sessions, log sets with weight and reps. Compact rest timer bar (pause, ±15 s, adjustable default) after each completed set. Delete individual sets, pause the workout timer.
 - **Cardio** — Manual entry (type, duration, distance) or browser GPS tracking with live pace display.
 - **XP & Levels** — Earn XP for every workout, set, cardio session, and personal record. Level up as you train.
 - **Streak bonus** — Daily and weekly streak XP bonuses keep you consistent.

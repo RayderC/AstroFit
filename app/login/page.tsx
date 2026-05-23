@@ -48,13 +48,16 @@ export default function LoginPage() {
 
   if (checkingSetup) return (
     <div className="auth-page">
-      <div className="auth-card" style={{ textAlign: "center", color: "var(--text-muted)" }}>Loading…</div>
+      <div className="auth-card">
+        <div className="loading">Loading…</div>
+      </div>
     </div>
   );
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    setError(""); setLoading(true);
+    setError("");
+    setLoading(true);
     const form = e.currentTarget as HTMLFormElement & {
       username: { value: string };
       password: { value: string };
@@ -83,11 +86,17 @@ export default function LoginPage() {
         </svg>
         <div className="login-scanline" />
       </div>
+
       <div className="auth-card">
-        <Link href="/" className="auth-logo">AstroFit</Link>
+        <Link href="/" className="auth-logo-wrap">
+          <img src="/logo.png" alt="AstroFit" className="auth-logo-img" />
+          <span className="auth-logo">AstroFit</span>
+        </Link>
+
         <h1 className="auth-title">Welcome back</h1>
         <p className="auth-subtitle">Sign in to access your fitness dashboard.</p>
-        <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: "18px" }}>
+
+        <form onSubmit={handleSubmit} className="auth-form">
           {error && <p className="form-error">{error}</p>}
           <div className="form-group">
             <label className="form-label" htmlFor="username">Username</label>
@@ -99,7 +108,7 @@ export default function LoginPage() {
             <input type="password" id="password" name="password" className="form-input"
               placeholder="••••••••" autoComplete="current-password" required />
           </div>
-          <button type="submit" className="btn btn-primary btn-lg" disabled={loading} style={{ marginTop: "4px" }}>
+          <button type="submit" className="btn btn-primary btn-lg" disabled={loading}>
             {loading ? "Signing in…" : "Sign In"}
           </button>
         </form>

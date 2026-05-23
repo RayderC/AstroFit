@@ -113,73 +113,73 @@ export default function TemplateEditPage() {
   if (!template) return null;
 
   return (
-    <div style={{ maxWidth: 640 }}>
+    <div className="content-narrow">
       <div style={{ marginBottom: 24 }}>
-        <button onClick={() => router.push("/dashboard/templates")} style={{ background: "none", border: "none", color: "var(--text-muted)", cursor: "pointer", fontSize: "0.85rem", padding: 0, marginBottom: 8 }}>
+        <button className="back-link" onClick={() => router.push("/dashboard/templates")}>
           ← Templates
         </button>
         {editName ? (
-          <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+          <div className="flex gap-2 items-center" style={{ marginTop: 8 }}>
             <input
               className="form-input"
               value={nameInput}
               onChange={e => setNameInput(e.target.value)}
               onKeyDown={e => { if (e.key === "Enter") saveName(); if (e.key === "Escape") setEditName(false); }}
               autoFocus
-              style={{ fontSize: "1.3rem", fontWeight: 700 }}
             />
-            <button className="btn-primary btn-sm" onClick={saveName}>Save</button>
-            <button className="btn-secondary btn-sm" onClick={() => setEditName(false)}>Cancel</button>
+            <button className="btn btn-primary btn-sm" onClick={saveName}>Save</button>
+            <button className="btn btn-secondary btn-sm" onClick={() => setEditName(false)}>Cancel</button>
           </div>
         ) : (
-          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-            <h1 style={{ fontSize: "1.5rem", fontWeight: 700 }}>{template.name}</h1>
-            <button onClick={() => setEditName(true)} style={{ background: "none", border: "none", color: "var(--text-muted)", cursor: "pointer", fontSize: "0.85rem" }}>
-              Edit
-            </button>
+          <div className="flex items-center gap-3" style={{ marginTop: 8 }}>
+            <h1 className="dash-title" style={{ marginBottom: 0 }}>{template.name}</h1>
+            <button className="btn btn-ghost btn-sm" onClick={() => setEditName(true)}>Edit name</button>
           </div>
         )}
       </div>
 
       {template.exercises.length === 0 ? (
         <div className="empty-state" style={{ marginBottom: 20 }}>
-          <div>No exercises yet. Add your first one below.</div>
+          <div className="empty-state-title">No exercises yet</div>
+          <div className="empty-state-desc">Add your first one below.</div>
         </div>
       ) : (
-        <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 16 }}>
+        <div className="flex-col gap-2" style={{ marginBottom: 16 }}>
           {template.exercises.map(ex => (
-            <div key={ex.id} className="card" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-              <div>
-                <div style={{ fontWeight: 600 }}>{ex.exercise_name}</div>
-                <div style={{ fontSize: "0.82rem", color: "var(--text-muted)", marginTop: 2 }}>
-                  {ex.sets} sets
-                  {ex.target_reps && ` × ${ex.target_reps} reps`}
-                  {ex.target_weight && ` @ ${ex.target_weight}kg`}
-                  {ex.rest_seconds > 0 && ` · ${ex.rest_seconds}s rest`}
+            <div key={ex.id} className="card">
+              <div className="template-row" style={{ padding: 0 }}>
+                <div>
+                  <div className="template-row-name">{ex.exercise_name}</div>
+                  <div className="template-row-meta">
+                    {ex.sets} sets
+                    {ex.target_reps && ` × ${ex.target_reps} reps`}
+                    {ex.target_weight && ` @ ${ex.target_weight}kg`}
+                    {ex.rest_seconds > 0 && ` · ${ex.rest_seconds}s rest`}
+                  </div>
                 </div>
+                <button
+                  className="btn btn-danger btn-sm"
+                  onClick={() => removeExercise(ex.id)}
+                  disabled={deleting === ex.id}
+                >
+                  {deleting === ex.id ? "..." : "Remove"}
+                </button>
               </div>
-              <button
-                className="btn-danger btn-sm"
-                onClick={() => removeExercise(ex.id)}
-                disabled={deleting === ex.id}
-              >
-                {deleting === ex.id ? "..." : "Remove"}
-              </button>
             </div>
           ))}
         </div>
       )}
 
-      <button className="btn-secondary" style={{ width: "100%" }} onClick={() => setShowAddExercise(true)}>
+      <button className="btn btn-secondary btn-full" onClick={() => setShowAddExercise(true)}>
         + Add Exercise
       </button>
 
       {showAddExercise && (
         <div className="modal-overlay" onClick={() => setShowAddExercise(false)}>
           <div className="modal" onClick={e => e.stopPropagation()}>
-            <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 16 }}>
-              <h3 style={{ fontWeight: 700 }}>Add Exercise to Template</h3>
-              <button onClick={() => setShowAddExercise(false)} style={{ background: "none", border: "none", color: "var(--text-muted)", cursor: "pointer" }}>✕</button>
+            <div className="modal-header">
+              <h3 className="modal-title">Add Exercise to Template</h3>
+              <button className="modal-close" onClick={() => setShowAddExercise(false)}>✕</button>
             </div>
             <input
               className="form-input"
@@ -189,45 +189,48 @@ export default function TemplateEditPage() {
               autoFocus
             />
             {!selectedExercise && (
-              <div style={{ marginTop: 10, maxHeight: 200, overflowY: "auto", display: "flex", flexDirection: "column", gap: 6 }}>
+              <div className="modal-search-list" style={{ maxHeight: 200 }}>
                 {exerciseResults.map(ex => (
                   <button
                     key={ex.id}
+                    className="exercise-search-item"
                     onClick={() => setSelectedExercise(ex)}
-                    style={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 8, padding: "8px 12px", textAlign: "left", cursor: "pointer" }}
                   >
-                    <div style={{ fontWeight: 600, fontSize: "0.9rem" }}>{ex.name}</div>
-                    <div style={{ fontSize: "0.78rem", color: "var(--text-muted)" }}>{ex.category}</div>
+                    <div className="exercise-search-name">{ex.name}</div>
+                    <div className="exercise-search-cat">{ex.category}</div>
                   </button>
                 ))}
+                {exerciseQuery && exerciseResults.length === 0 && (
+                  <p className="text-muted" style={{ textAlign: "center", padding: "12px 0", fontSize: 14 }}>No exercises found</p>
+                )}
               </div>
             )}
             {selectedExercise && (
               <div style={{ marginTop: 12 }}>
-                <div style={{ background: "rgba(124,14,179,0.1)", border: "1px solid var(--primary)", borderRadius: 8, padding: "8px 12px", marginBottom: 12 }}>
-                  <div style={{ fontWeight: 600, fontSize: "0.9rem" }}>{selectedExercise.name}</div>
+                <div className="selected-exercise-box">
+                  <div className="selected-exercise-name">{selectedExercise.name}</div>
                 </div>
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 10 }}>
-                  <div>
+                <div className="form-grid-2" style={{ marginBottom: 10 }}>
+                  <div className="form-group">
                     <label className="form-label">Sets</label>
                     <input className="form-input" type="number" min="1" value={addSets} onChange={e => setAddSets(Number(e.target.value))} />
                   </div>
-                  <div>
+                  <div className="form-group">
                     <label className="form-label">Target Reps</label>
                     <input className="form-input" placeholder="e.g. 8-12" value={addReps} onChange={e => setAddReps(e.target.value)} />
                   </div>
-                  <div>
+                  <div className="form-group">
                     <label className="form-label">Target Weight (kg)</label>
                     <input className="form-input" type="number" placeholder="optional" value={addWeight} onChange={e => setAddWeight(e.target.value)} />
                   </div>
-                  <div>
+                  <div className="form-group">
                     <label className="form-label">Rest (seconds)</label>
                     <input className="form-input" type="number" value={addRest} onChange={e => setAddRest(Number(e.target.value))} />
                   </div>
                 </div>
-                <div style={{ display: "flex", gap: 8 }}>
-                  <button className="btn-primary btn-sm" onClick={addExercise}>Add</button>
-                  <button className="btn-secondary btn-sm" onClick={() => setSelectedExercise(null)}>Back</button>
+                <div className="form-actions">
+                  <button className="btn btn-primary btn-sm" onClick={addExercise}>Add</button>
+                  <button className="btn btn-secondary btn-sm" onClick={() => setSelectedExercise(null)}>Back</button>
                 </div>
               </div>
             )}

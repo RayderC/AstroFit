@@ -1,6 +1,7 @@
 "use client";
 import { useState, useEffect } from "react";
 import Link from "next/link";
+import { useUnits } from "@/app/context/UnitsContext";
 
 const CARDIO_TYPES = ["Running", "Cycling", "Walking", "Swimming", "Rowing", "Elliptical", "Stair Climber", "Jump Rope", "HIIT", "Other"];
 
@@ -16,6 +17,7 @@ interface CardioActivity {
 }
 
 export default function CardioPage() {
+  const { distanceUnit } = useUnits();
   const [activities, setActivities] = useState<CardioActivity[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
@@ -39,7 +41,6 @@ export default function CardioPage() {
     const s = parseInt(form.seconds) || 0;
     const durationSeconds = h * 3600 + m * 60 + s;
     if (durationSeconds === 0) { alert("Duration required"); return; }
-
     setSaving(true);
     const res = await fetch("/api/cardio", {
       method: "POST",
@@ -74,10 +75,10 @@ export default function CardioPage() {
     return `${m}:${String(sec).padStart(2, "0")}`;
   };
 
-  const formatPace = (pacePerKm: number) => {
-    const m = Math.floor(pacePerKm);
-    const s = Math.round((pacePerKm - m) * 60);
-    return `${m}:${String(s).padStart(2, "0")}/km`;
+  const formatPace = (pacePerUnit: number) => {
+    const m = Math.floor(pacePerUnit);
+    const s = Math.round((pacePerUnit - m) * 60);
+    return `${m}:${String(s).padStart(2, "0")}/${distanceUnit}`;
   };
 
   const formatDate = (iso: string) => new Date(iso).toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" });
@@ -85,12 +86,12 @@ export default function CardioPage() {
   if (loading) return <div className="loading">Loading...</div>;
 
   return (
-    <div style={{ maxWidth: 680 }}>
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 24 }}>
-        <h1 style={{ fontSize: "1.5rem", fontWeight: 700 }}>Cardio</h1>
-        <div style={{ display: "flex", gap: 8 }}>
-          <Link href="/dashboard/cardio/track" className="btn-secondary btn-sm">GPS Track</Link>
-          <button className="btn-primary btn-sm" onClick={() => setShowForm(!showForm)}>
+    <div className="content-narrow">
+      <div className="dash-header">
+        <h1 className="dash-title">Cardio</h1>
+        <div className="flex gap-2">
+          <Link href="/dashboard/cardio/track" className="btn btn-secondary btn-sm">GPS Track</Link>
+          <button className="btn btn-primary btn-sm" onClick={() => setShowForm(!showForm)}>
             + Log Activity
           </button>
         </div>
@@ -98,42 +99,35 @@ export default function CardioPage() {
 
       {showForm && (
         <div className="card" style={{ marginBottom: 24 }}>
-          <h3 style={{ marginBottom: 16, fontWeight: 600 }}>Log Cardio Activity</h3>
-          <div style={{ display: "grid", gap: 12 }}>
-            <div>
+          <div className="card-header">
+            <span className="card-title">Log Cardio Activity</span>
+          </div>
+          <div className="inline-form">
+            <div className="form-group">
               <label className="form-label">Activity Type</label>
-              <select className="form-input" value={form.type} onChange={e => setForm(p => ({ ...p, type: e.target.value }))}>
+              <select className="form-select" value={form.type} onChange={e => setForm(p => ({ ...p, type: e.target.value }))}>
                 {CARDIO_TYPES.map(t => <option key={t}>{t}</option>)}
               </select>
             </div>
-            <div>
+            <div className="form-group">
               <label className="form-label">Duration</label>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8 }}>
-                <div style={{ position: "relative" }}>
-                  <input className="form-input" type="number" placeholder="0" min="0" value={form.hours} onChange={e => setForm(p => ({ ...p, hours: e.target.value }))} />
-                  <span style={{ position: "absolute", right: 10, top: "50%", transform: "translateY(-50%)", fontSize: "0.75rem", color: "var(--text-muted)" }}>h</span>
-                </div>
-                <div style={{ position: "relative" }}>
-                  <input className="form-input" type="number" placeholder="0" min="0" max="59" value={form.minutes} onChange={e => setForm(p => ({ ...p, minutes: e.target.value }))} />
-                  <span style={{ position: "absolute", right: 10, top: "50%", transform: "translateY(-50%)", fontSize: "0.75rem", color: "var(--text-muted)" }}>m</span>
-                </div>
-                <div style={{ position: "relative" }}>
-                  <input className="form-input" type="number" placeholder="0" min="0" max="59" value={form.seconds} onChange={e => setForm(p => ({ ...p, seconds: e.target.value }))} />
-                  <span style={{ position: "absolute", right: 10, top: "50%", transform: "translateY(-50%)", fontSize: "0.75rem", color: "var(--text-muted)" }}>s</span>
-                </div>
+              <div className="form-grid-3">
+                <input className="form-input" type="number" placeholder="0h" min="0" value={form.hours} onChange={e => setForm(p => ({ ...p, hours: e.target.value }))} />
+                <input className="form-input" type="number" placeholder="0m" min="0" max="59" value={form.minutes} onChange={e => setForm(p => ({ ...p, minutes: e.target.value }))} />
+                <input className="form-input" type="number" placeholder="0s" min="0" max="59" value={form.seconds} onChange={e => setForm(p => ({ ...p, seconds: e.target.value }))} />
               </div>
             </div>
-            <div>
-              <label className="form-label">Distance (km) — optional</label>
+            <div className="form-group">
+              <label className="form-label">Distance ({distanceUnit}) — optional</label>
               <input className="form-input" type="number" step="0.01" placeholder="0.00" min="0" value={form.distance} onChange={e => setForm(p => ({ ...p, distance: e.target.value }))} />
             </div>
-            <div>
+            <div className="form-group">
               <label className="form-label">Notes (optional)</label>
               <input className="form-input" placeholder="How did it feel?" value={form.notes} onChange={e => setForm(p => ({ ...p, notes: e.target.value }))} />
             </div>
-            <div style={{ display: "flex", gap: 8 }}>
-              <button className="btn-primary" onClick={submitCardio} disabled={saving}>{saving ? "Saving..." : "Save Activity"}</button>
-              <button className="btn-secondary" onClick={() => setShowForm(false)}>Cancel</button>
+            <div className="form-actions">
+              <button className="btn btn-primary" onClick={submitCardio} disabled={saving}>{saving ? "Saving..." : "Save Activity"}</button>
+              <button className="btn btn-secondary" onClick={() => setShowForm(false)}>Cancel</button>
             </div>
           </div>
         </div>
@@ -141,38 +135,32 @@ export default function CardioPage() {
 
       {activities.length === 0 ? (
         <div className="empty-state">
-          <div style={{ fontSize: "2rem", marginBottom: 8 }}>🏃</div>
-          <div>No cardio logged yet.</div>
+          <div className="empty-state-icon">🏃</div>
+          <div className="empty-state-title">No cardio logged yet</div>
+          <div className="empty-state-desc">Log your first activity or use GPS tracking above.</div>
         </div>
       ) : (
-        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+        <div className="flex-col gap-2">
           {activities.map(a => (
             <div key={a.id} className="card">
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
-                <div style={{ flex: 1 }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                    <span style={{ fontWeight: 700 }}>{a.type}</span>
+              <div className="cardio-row" style={{ padding: 0 }}>
+                <div className="cardio-row-left">
+                  <div className="flex items-center">
+                    <span className="cardio-row-type">{a.type}</span>
                     {a.distance_km && (
-                      <span style={{ fontSize: "0.85rem", color: "var(--accent-cyan)", fontWeight: 600 }}>
-                        {a.distance_km.toFixed(2)} km
-                      </span>
+                      <span className="cardio-row-distance">{a.distance_km.toFixed(2)} {distanceUnit}</span>
                     )}
                   </div>
-                  <div style={{ fontSize: "0.85rem", color: "var(--text-muted)", marginTop: 4, display: "flex", gap: 12, flexWrap: "wrap" }}>
+                  <div className="cardio-row-meta">
                     <span>{formatDuration(a.duration_seconds)}</span>
                     {a.pace_per_km && <span>{formatPace(a.pace_per_km)}</span>}
-                    {a.notes && <span style={{ fontStyle: "italic" }}>{a.notes}</span>}
+                    {a.notes && <span className="cardio-row-notes">{a.notes}</span>}
                   </div>
                 </div>
-                <div style={{ textAlign: "right", display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 4 }}>
-                  <div style={{ fontSize: "0.8rem", color: "var(--text-muted)" }}>{formatDate(a.created_at)}</div>
-                  <div style={{ fontSize: "0.8rem", color: "var(--xp-color)" }}>+{a.xp_earned} XP</div>
-                  <button
-                    onClick={() => deleteActivity(a.id)}
-                    style={{ background: "none", border: "none", color: "var(--text-muted)", cursor: "pointer", fontSize: "0.75rem", padding: 0 }}
-                  >
-                    Delete
-                  </button>
+                <div className="cardio-row-right">
+                  <div className="history-row-date">{formatDate(a.created_at)}</div>
+                  <div className="xp-tag">+{a.xp_earned} XP</div>
+                  <button className="btn btn-ghost btn-sm" onClick={() => deleteActivity(a.id)}>Delete</button>
                 </div>
               </div>
             </div>

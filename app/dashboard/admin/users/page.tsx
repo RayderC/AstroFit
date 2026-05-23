@@ -81,21 +81,23 @@ export default function AdminUsersPage() {
   if (loading) return <div className="loading">Loading...</div>;
 
   return (
-    <div style={{ maxWidth: 700 }}>
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 24 }}>
+    <div className="content-wide">
+      <div className="dash-header">
         <div>
-          <button onClick={() => router.push("/dashboard/admin")} style={{ background: "none", border: "none", color: "var(--text-muted)", cursor: "pointer", fontSize: "0.85rem", padding: 0, marginBottom: 4 }}>
+          <button className="back-link" onClick={() => router.push("/dashboard/admin")}>
             ← Admin
           </button>
-          <h1 style={{ fontSize: "1.5rem", fontWeight: 700 }}>Users</h1>
+          <h1 className="dash-title" style={{ marginTop: 4 }}>Users</h1>
         </div>
-        <button className="btn-primary btn-sm" onClick={() => setShowCreate(!showCreate)}>+ Add User</button>
+        <button className="btn btn-primary btn-sm" onClick={() => setShowCreate(!showCreate)}>+ Add User</button>
       </div>
 
       {showCreate && (
         <div className="card" style={{ marginBottom: 20 }}>
-          <h3 style={{ marginBottom: 12 }}>New User</h3>
-          <div style={{ display: "grid", gap: 10 }}>
+          <div className="card-header">
+            <span className="card-title">New User</span>
+          </div>
+          <div className="inline-form">
             <input
               className="form-input"
               placeholder="Username"
@@ -110,7 +112,7 @@ export default function AdminUsersPage() {
               value={newUser.password}
               onChange={e => setNewUser(p => ({ ...p, password: e.target.value }))}
             />
-            <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: "0.9rem", cursor: "pointer" }}>
+            <label className="flex items-center gap-2" style={{ cursor: "pointer", fontSize: 14 }}>
               <input
                 type="checkbox"
                 checked={newUser.isAdmin}
@@ -118,63 +120,58 @@ export default function AdminUsersPage() {
               />
               Admin
             </label>
-            <div style={{ display: "flex", gap: 8 }}>
-              <button className="btn-primary btn-sm" onClick={createUser} disabled={creating}>
+            <div className="form-actions">
+              <button className="btn btn-primary btn-sm" onClick={createUser} disabled={creating}>
                 {creating ? "Creating..." : "Create"}
               </button>
-              <button className="btn-secondary btn-sm" onClick={() => setShowCreate(false)}>Cancel</button>
+              <button className="btn btn-secondary btn-sm" onClick={() => setShowCreate(false)}>Cancel</button>
             </div>
           </div>
         </div>
       )}
 
-      <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+      <div className="flex-col gap-2">
         {users.map(u => (
           <div key={u.id} className="card">
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 10 }}>
-              <div>
-                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                  <span style={{ fontWeight: 700 }}>{u.username}</span>
-                  {u.is_admin === 1 && (
-                    <span style={{ fontSize: "0.7rem", background: "rgba(124,14,179,0.2)", color: "var(--primary-light)", padding: "1px 6px", borderRadius: 4 }}>Admin</span>
-                  )}
+            <div className="admin-user-row" style={{ padding: 0 }}>
+              <div className="admin-user-top">
+                <div>
+                  <div className="admin-user-name">
+                    {u.username}
+                    {u.is_admin === 1 && <span className="badge badge-purple">Admin</span>}
+                  </div>
+                  <div className="admin-user-meta">Level {u.level} · {u.xp.toLocaleString()} XP · {u.streak_days}d streak</div>
+                  <div className="admin-user-joined">Joined {new Date(u.created_at).toLocaleDateString()}</div>
                 </div>
-                <div style={{ fontSize: "0.82rem", color: "var(--text-muted)", marginTop: 2 }}>
-                  Level {u.level} · {u.xp.toLocaleString()} XP · {u.streak_days}d streak
-                </div>
-                <div style={{ fontSize: "0.78rem", color: "var(--text-muted)", marginTop: 1 }}>
-                  Joined {new Date(u.created_at).toLocaleDateString()}
+                <div className="admin-user-actions">
+                  <button
+                    className="btn btn-secondary btn-sm"
+                    onClick={() => toggleAdmin(u)}
+                    title={u.is_admin ? "Remove admin" : "Make admin"}
+                  >
+                    {u.is_admin ? "Un-admin" : "Admin"}
+                  </button>
+                  <button className="btn btn-danger btn-sm" onClick={() => deleteUser(u.id)}>
+                    Delete
+                  </button>
                 </div>
               </div>
-              <div style={{ display: "flex", gap: 6 }}>
+              <div className="admin-pw-row">
+                <input
+                  className="form-input"
+                  type="password"
+                  placeholder="New password"
+                  value={resetPasswords[u.id] ?? ""}
+                  onChange={e => setResetPasswords(p => ({ ...p, [u.id]: e.target.value }))}
+                />
                 <button
-                  className="btn-secondary btn-sm"
-                  onClick={() => toggleAdmin(u)}
-                  title={u.is_admin ? "Remove admin" : "Make admin"}
+                  className="btn btn-secondary btn-sm"
+                  onClick={() => resetPassword(u.id)}
+                  disabled={!resetPasswords[u.id]}
                 >
-                  {u.is_admin ? "Un-admin" : "Admin"}
-                </button>
-                <button className="btn-danger btn-sm" onClick={() => deleteUser(u.id)}>
-                  Delete
+                  Reset
                 </button>
               </div>
-            </div>
-            <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-              <input
-                className="form-input"
-                type="password"
-                placeholder="New password"
-                value={resetPasswords[u.id] ?? ""}
-                onChange={e => setResetPasswords(p => ({ ...p, [u.id]: e.target.value }))}
-                style={{ fontSize: "0.85rem", flex: 1 }}
-              />
-              <button
-                className="btn-secondary btn-sm"
-                onClick={() => resetPassword(u.id)}
-                disabled={!resetPasswords[u.id]}
-              >
-                Reset
-              </button>
             </div>
           </div>
         ))}

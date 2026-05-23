@@ -16,6 +16,7 @@ const TRACES = [
   { d: 'M 270,800 V 695 H 215 V 650',         cls: 'cyan',   delay: '0.5s' },
   { d: 'M 860,800 V 715 H 915 V 655',         cls: 'purple', delay: '0.9s' },
 ];
+
 const NODES: [number, number, string][] = [
   [140,180,'purple'],[140,240,'cyan'],[280,240,'purple'],
   [110,400,'cyan'],[110,345,'purple'],[230,345,'cyan'],[230,305,'purple'],
@@ -42,16 +43,27 @@ export default function SetupPage() {
       .catch(() => setChecking(false));
   }, [router]);
 
+  if (checking) return (
+    <div className="auth-page">
+      <div className="auth-card">
+        <div className="loading">Checking setup status…</div>
+      </div>
+    </div>
+  );
+
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    setError(""); setLoading(true);
+    setError("");
+    setLoading(true);
     const form = e.currentTarget as HTMLFormElement & {
       username: { value: string };
       password: { value: string };
       confirm:  { value: string };
     };
     if (form.password.value !== form.confirm.value) {
-      setError("Passwords do not match"); setLoading(false); return;
+      setError("Passwords do not match");
+      setLoading(false);
+      return;
     }
     const res = await fetch("/api/setup", {
       method: "POST",
@@ -61,16 +73,6 @@ export default function SetupPage() {
     setLoading(false);
     if (res.ok) router.push("/dashboard");
     else setError((await res.json()).message || "Setup failed");
-  }
-
-  if (checking) {
-    return (
-      <div className="auth-page">
-        <div className="auth-card">
-          <p style={{ color: "var(--text-muted)", textAlign: "center" }}>Checking setup status…</p>
-        </div>
-      </div>
-    );
   }
 
   return (
@@ -87,11 +89,17 @@ export default function SetupPage() {
         </svg>
         <div className="login-scanline" />
       </div>
+
       <div className="auth-card">
-        <Link href="/" className="auth-logo">AstroFit</Link>
+        <Link href="/" className="auth-logo-wrap">
+          <img src="/logo.png" alt="AstroFit" className="auth-logo-img" />
+          <span className="auth-logo">AstroFit</span>
+        </Link>
+
         <h1 className="auth-title">First-time setup</h1>
         <p className="auth-subtitle">Create your admin account to get started.</p>
-        <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: "18px" }}>
+
+        <form onSubmit={handleSubmit} className="auth-form">
           {error && <p className="form-error">{error}</p>}
           <div className="form-group">
             <label className="form-label" htmlFor="username">Username</label>
@@ -108,7 +116,7 @@ export default function SetupPage() {
             <input type="password" id="confirm" name="confirm" className="form-input"
               placeholder="Repeat password" minLength={8} required />
           </div>
-          <button type="submit" className="btn btn-primary btn-lg" disabled={loading} style={{ marginTop: "4px" }}>
+          <button type="submit" className="btn btn-primary btn-lg" disabled={loading}>
             {loading ? "Creating account…" : "Create Admin Account"}
           </button>
         </form>

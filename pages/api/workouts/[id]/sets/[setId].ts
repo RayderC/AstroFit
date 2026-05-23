@@ -5,7 +5,7 @@ import db from "@/lib/db";
 import { checkCsrf } from "@/lib/csrf";
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
-  if (req.method !== "PATCH") return res.status(405).end();
+  if (req.method !== "PATCH" && req.method !== "DELETE") return res.status(405).end();
   if (!checkCsrf(req)) return res.status(403).json({ message: "Forbidden" });
 
   const session = await getIronSession<{ user?: User }>(req, res, sessionOptions);
@@ -25,6 +25,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     WHERE ws.id = ? AND we.workout_id = ?
   `).get(setId, workoutId);
   if (!exists) return res.status(404).json({ message: "Set not found" });
+
+  if (req.method === "DELETE") {
+    db.prepare("DELETE FROM workout_sets WHERE id = ?").run(setId);
+    return res.json({ ok: true });
+  }
 
   const { weight, reps, completed, is_warmup, rpe } = req.body as {
     weight?: number | null;

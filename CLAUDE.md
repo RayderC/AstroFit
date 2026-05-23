@@ -5,74 +5,48 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Commands
 
 ```bash
-npm run dev        # Start dev server at http://localhost:7090
-npm run build      # Production build
-npm start          # Start production server at http://localhost:7090
-npm run typecheck  # TypeScript check without emitting
-npm run lint       # ESLint
-```
-
-**Docker:**
-```bash
-# Build (must have .dockerignore — without it, Windows node_modules corrupt the Linux binary)
+npm run dev        # http://localhost:7090
+npm run build
+npm run typecheck
 docker build -t rayderc/astrofit:latest .
-
-# Run with named volume (bind mounts break SQLite WAL locking on Windows)
-docker run -d --name astrofit -p 7090:7090 -v astrofit_data:/config --restart unless-stopped rayderc/astrofit:latest
+docker rm -f astrofit; docker run -d --name astrofit -p 7090:7090 -v astrofit_data:/config --restart unless-stopped rayderc/astrofit:latest
 ```
 
 ## Architecture
 
-### Hybrid Next.js Router
+Hybrid Next.js router: `app/` (App Router, all UI, all `"use client"`) + `pages/api/` (Pages Router, all API routes). No middleware — auth is enforced client-side via `/api/me` in `app/dashboard/layout.tsx`.
 
-This app uses **two Next.js routers simultaneously**:
-- `app/` — App Router for all UI pages (all `"use client"` components; no server components do data fetching)
-- `pages/api/` — Pages Router exclusively for API routes
+`lib/db.ts` opens SQLite and runs migrations on import. Key schema: `cardio_activities.started_at` (not `created_at`); `personal_records` has `UNIQUE(user_id, exercise_id)` with `ON CONFLICT DO UPDATE`; `challenges.type` is `weekly_auto` or `special`.
 
-There is no middleware. Auth is enforced client-side: `app/dashboard/layout.tsx` calls `/api/me` on mount and redirects to `/login` on 401. The login page checks `/api/setup` and redirects to `/setup` if no users exist yet.
+iron-session (`lib/session.ts`), cookie `astrofit_session`. Production requires `SESSION_SECRET` ≥ 32 chars. CSRF (`lib/csrf.ts`) checks `origin` vs `host` on all mutating routes except `/api/setup` and `/api/login`.
 
-### Database (`lib/db.ts`)
+XP: 50 base + 2/set per workout; 30 base + 5/km for cardio; 25 bonus for PRs.
 
-Single module that opens the SQLite database and runs schema migrations on import. There is no separate init call — importing the module is sufficient. The module also seeds 80+ built-in exercises on first run.
+## Workout Session (`app/dashboard/workout/[id]/page.tsx`)
 
-Key schema notes:
-- `cardio_activities` uses `started_at` (not `created_at`) for its timestamp column
-- `personal_records` has `UNIQUE(user_id, exercise_id)` — one PR record per exercise, updated via `ON CONFLICT DO UPDATE`
-- `challenges.target_type` valid values: `workout_count`, `cardio_km`, `cardio_count`, `volume_kg`, `pr_count`
-- `challenges.type` values: `weekly_auto` (system-generated), `special` (admin-created)
+Active session page. Key behaviours to keep in mind:
 
-Database path: `process.env.DATABASE_PATH || path.join(process.cwd(), "astrofit.db")`. Docker sets it to `/config/astrofit.db`.
+- **Timestamp parsing** — SQLite `datetime('now')` returns UTC without a `Z` (e.g. `"2024-01-15 10:30:00"`). Always parse as `new Date(raw.replace(" ","T")+"Z")` or the elapsed timer goes negative for users behind UTC.
+- **Elapsed timer** — Pause-aware via `isPausedRef` + `pauseOffsetRef`. Elapsed = `floor((now − startMs)/1000) − pauseOffset`. The ref approach avoids stale-closure issues inside the interval.
+- **Rest timer** — Compact fixed bottom bar (`.rest-timer-bar`), not a full-screen overlay. `restDuration` state drives the default; ±15 s buttons in the bar adjust both the live countdown and the default for future sets.
+- **Set inputs** — `type="number"` with `onKeyDown` guards filtering `e E + −` (weight) and also `.` (reps). `inputMode="decimal"` / `"numeric"` for correct mobile keyboards.
+- **Delete set** — `DELETE /api/workouts/[id]/sets/[setId]` alongside PATCH in `pages/api/workouts/[id]/sets/[setId].ts`.
+- **Finish workout** — Wrapped in try/catch; timers stop before the fetch. On success `completionData` is set and the completion card renders; user navigates away manually.
 
-### Auth (`lib/session.ts`)
+## Units System
 
-iron-session with cookie name `astrofit_session`. In dev (`NODE_ENV !== 'production'`), uses a hardcoded placeholder secret. In production, requires `SESSION_SECRET` env var ≥ 32 chars — throws at module load if missing. Docker auto-generates this via `docker-entrypoint.sh`.
+Default units are **lb** (weight) and **mi** (distance). User preference is stored in `localStorage` keys `astrofit_weight_unit` and `astrofit_distance_unit`. The context provider lives in `app/context/UnitsContext.tsx` and wraps the entire dashboard via `app/dashboard/layout.tsx`. Toggle is at `/dashboard/settings`.
 
-### CSRF (`lib/csrf.ts`)
+The DB stores raw numbers — no server-side unit conversion. GPS tracking (`cardio/track`) computes distance via haversine (always km internally) then converts to miles for display and saves in the user's preferred unit. All measurement labels are dynamic from `useUnits()`.
 
-`checkCsrf(req)` compares the `origin` header host to the `host` header. Called in all mutating API routes except `/api/setup` and `/api/login` (public endpoints). If no `origin` header is present, the request is allowed through.
+## Design System
 
-### XP System (`lib/xp.ts`)
+Cyberpunk dark theme in `app/globals.css`, consistent with Amethyst/ComicOrbit/SkyBit. Body uses system fonts (`-apple-system, Segoe UI, Roboto`). `var(--font-mono)` (JetBrains Mono) applies only to nav labels, badges, stat values, form labels, `.sidebar-logo` — never body text. Auth/modal cards use `overflow: hidden` with brackets 10px inside (cyan top-left, magenta bottom-right). Sidebar active state uses `box-shadow: inset 2px 0 0 var(--accent-cyan)`, not `border-left`. Page titles use chromatic `text-shadow`, not animated gradient. No logo image — text-only branding.
 
-Level formula: XP needed for level n = cumulative sum of `100 + 75*(k-1)` for k=1..n-1. Awards: 50 XP base per workout + 2 per completed set; 30 base + 5/km for cardio; 25 bonus for PRs. `awardXp()` in `lib/db.ts` writes an `xp_events` row and updates `users.xp` and `users.level` atomically.
+Mobile breakpoints: 900px (sidebar collapses to drawer, padding reduces), 640px (inputs get `font-size: 16px` to prevent iOS zoom, modals become bottom sheets, progress grid stacks). Uses `env(safe-area-inset-bottom)` for notch padding.
 
-### Weekly Challenges
+Key CSS classes: `.progress-grid` (220px 1fr, stacks at 640px), `.settings-row`, `.unit-toggle`, `.unit-btn`.
 
-`ensureWeeklyChallenges()` in `lib/db.ts` is called from `/api/challenges` on GET. It generates 3 challenges per week (strength, cardio, rotating wildcard) if they don't exist yet. Challenge progress is updated inline in the cardio and workout completion API routes via a local `updateChallengeProgress()` function.
+## Docker
 
-### API Conventions
-
-- All API routes use `getIronSession(req, res, sessionOptions)` from iron-session to read the session
-- Dynamic route params are read via `req.query` (Pages Router style), not `useParams`
-- `useParams<{ id: string }>()` is used in App Router pages for dynamic segments like `[id]`
-- `/api/me` returns camelCase: `streakDays`, `isAdmin`, `createdAt`, `xpProgress: { current, needed, level }`
-- `/api/dashboard/stats` returns: `workoutsThisWeek`, `volumeThisWeek`, `cardioKmThisWeek`, `xpThisWeek`, `totalWorkouts`, `totalCardio`, `totalVolumeKg`
-
-### CSS
-
-Single global stylesheet at `app/globals.css`. Cyberpunk dark theme with CSS variables (`--primary`, `--surface`, `--border`, `--text-muted`, `--danger`, etc.). Button classes `btn-primary`, `btn-secondary`, `btn-danger`, `btn-success` work standalone without a `btn` base class.
-
-## Docker Build Notes
-
-**Critical:** Always have `.dockerignore` excluding `node_modules` before building. Without it, `COPY . .` in the builder stage overwrites the Linux-compiled `better_sqlite3.node` with the Windows DLL from the local `node_modules`, causing `ERR_DLOPEN_FAILED: invalid ELF header` at runtime.
-
-**Named volumes only:** SQLite WAL mode does not work on Windows bind mounts (Docker Desktop uses 9P/virtio-9p which doesn't support the required file locking). Always use `-v astrofit_data:/config`, never `-v C:\...\config:/config`.
+`.dockerignore` must exclude `node_modules` or the Windows DLL corrupts the Linux SQLite binary. Use named volumes only (`-v astrofit_data:/config`) — WAL locking breaks on Windows bind mounts.

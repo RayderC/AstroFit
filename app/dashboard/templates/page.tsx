@@ -61,18 +61,20 @@ export default function TemplatesPage() {
   if (loading) return <div className="loading">Loading...</div>;
 
   return (
-    <div style={{ maxWidth: 680 }}>
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 24 }}>
-        <h1 style={{ fontSize: "1.5rem", fontWeight: 700 }}>Templates</h1>
-        <button className="btn-primary btn-sm" onClick={() => setShowCreate(!showCreate)}>
+    <div className="content-narrow">
+      <div className="dash-header">
+        <h1 className="dash-title">Templates</h1>
+        <button className="btn btn-primary btn-sm" onClick={() => setShowCreate(!showCreate)}>
           + New Template
         </button>
       </div>
 
       {showCreate && (
         <div className="card" style={{ marginBottom: 20 }}>
-          <h3 style={{ marginBottom: 12 }}>New Template</h3>
-          <div style={{ display: "grid", gap: 10 }}>
+          <div className="card-header">
+            <span className="card-title">New Template</span>
+          </div>
+          <div className="inline-form">
             <input
               className="form-input"
               placeholder="Template name (e.g. Push Day)"
@@ -87,11 +89,11 @@ export default function TemplatesPage() {
               value={description}
               onChange={e => setDescription(e.target.value)}
             />
-            <div style={{ display: "flex", gap: 8 }}>
-              <button className="btn-primary btn-sm" onClick={createTemplate} disabled={creating}>
+            <div className="form-actions">
+              <button className="btn btn-primary btn-sm" onClick={createTemplate} disabled={creating}>
                 {creating ? "Creating..." : "Create & Edit"}
               </button>
-              <button className="btn-secondary btn-sm" onClick={() => setShowCreate(false)}>Cancel</button>
+              <button className="btn btn-secondary btn-sm" onClick={() => setShowCreate(false)}>Cancel</button>
             </div>
           </div>
         </div>
@@ -99,27 +101,28 @@ export default function TemplatesPage() {
 
       {templates.length === 0 ? (
         <div className="empty-state">
-          <div style={{ fontSize: "2rem", marginBottom: 8 }}>📋</div>
-          <div>No templates yet. Create one to build a routine!</div>
+          <div className="empty-state-icon">📋</div>
+          <div className="empty-state-title">No templates yet</div>
+          <div className="empty-state-desc">Create one to build a routine!</div>
         </div>
       ) : (
-        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+        <div className="flex-col gap-2">
           {templates.map(t => (
             <div key={t.id} className="card">
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
-                <div style={{ flex: 1 }}>
-                  <div style={{ fontWeight: 700, fontSize: "1rem" }}>{t.name}</div>
-                  {t.description && <div style={{ fontSize: "0.85rem", color: "var(--text-muted)", marginTop: 2 }}>{t.description}</div>}
-                  <div style={{ fontSize: "0.8rem", color: "var(--text-muted)", marginTop: 4 }}>
+              <div className="template-row" style={{ padding: 0 }}>
+                <div>
+                  <div className="template-row-name">{t.name}</div>
+                  {t.description && <div className="template-row-meta">{t.description}</div>}
+                  <div className="template-row-meta">
                     {t.exercise_count} exercise{t.exercise_count !== 1 ? "s" : ""}
                     {t.total_sets > 0 && ` · ${t.total_sets} sets`}
                   </div>
                 </div>
-                <div style={{ display: "flex", gap: 8, marginLeft: 12 }}>
-                  <Link href={`/dashboard/templates/${t.id}`} className="btn-secondary btn-sm">Edit</Link>
-                  <button className="btn-primary btn-sm" onClick={() => startFromTemplate(t.id)}>Start</button>
+                <div className="template-row-actions">
+                  <Link href={`/dashboard/templates/${t.id}`} className="btn btn-secondary btn-sm">Edit</Link>
+                  <button className="btn btn-primary btn-sm" onClick={() => startFromTemplate(t.id)}>Start</button>
                   <button
-                    className="btn-danger btn-sm"
+                    className="btn btn-danger btn-sm"
                     onClick={() => deleteTemplate(t.id)}
                     disabled={deleting === t.id}
                   >

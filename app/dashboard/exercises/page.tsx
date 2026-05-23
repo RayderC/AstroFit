@@ -68,7 +68,6 @@ export default function ExercisesPage() {
     if (res.ok) {
       setShowCreate(false);
       setNewExercise({ name: "", category: "Chest", muscle_groups: "", equipment: "" });
-      // Refresh
       const params = new URLSearchParams();
       if (query) params.set("q", query);
       if (category !== "All") params.set("category", category);
@@ -82,27 +81,29 @@ export default function ExercisesPage() {
   };
 
   return (
-    <div style={{ maxWidth: 760 }}>
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20 }}>
-        <h1 style={{ fontSize: "1.5rem", fontWeight: 700 }}>Exercises</h1>
-        <button className="btn-primary btn-sm" onClick={() => setShowCreate(!showCreate)}>
+    <div className="content-wide">
+      <div className="dash-header">
+        <h1 className="dash-title">Exercises</h1>
+        <button className="btn btn-primary btn-sm" onClick={() => setShowCreate(!showCreate)}>
           + Custom Exercise
         </button>
       </div>
 
       {showCreate && (
         <div className="card" style={{ marginBottom: 20 }}>
-          <h3 style={{ marginBottom: 12 }}>New Custom Exercise</h3>
-          <div style={{ display: "grid", gap: 10 }}>
+          <div className="card-header">
+            <span className="card-title">New Custom Exercise</span>
+          </div>
+          <div className="inline-form">
             <input
               className="form-input"
               placeholder="Exercise name"
               value={newExercise.name}
               onChange={e => setNewExercise(p => ({ ...p, name: e.target.value }))}
             />
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+            <div className="form-grid-2">
               <select
-                className="form-input"
+                className="form-select"
                 value={newExercise.category}
                 onChange={e => setNewExercise(p => ({ ...p, category: e.target.value }))}
               >
@@ -121,9 +122,9 @@ export default function ExercisesPage() {
               value={newExercise.muscle_groups}
               onChange={e => setNewExercise(p => ({ ...p, muscle_groups: e.target.value }))}
             />
-            <div style={{ display: "flex", gap: 8 }}>
-              <button className="btn-primary btn-sm" onClick={createExercise}>Create</button>
-              <button className="btn-secondary btn-sm" onClick={() => setShowCreate(false)}>Cancel</button>
+            <div className="form-actions">
+              <button className="btn btn-primary btn-sm" onClick={createExercise}>Create</button>
+              <button className="btn btn-secondary btn-sm" onClick={() => setShowCreate(false)}>Cancel</button>
             </div>
           </div>
         </div>
@@ -138,23 +139,12 @@ export default function ExercisesPage() {
         />
       </div>
 
-      <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 20 }}>
+      <div className="filter-row">
         {CATEGORIES.map(c => (
           <button
             key={c}
+            className={`filter-chip${category === c ? " active" : ""}`}
             onClick={() => setCategory(c)}
-            style={{
-              padding: "4px 12px",
-              borderRadius: 20,
-              fontSize: "0.82rem",
-              fontWeight: 500,
-              cursor: "pointer",
-              border: "1px solid",
-              borderColor: category === c ? "var(--primary-light)" : "var(--border)",
-              background: category === c ? "rgba(168,85,247,0.15)" : "var(--surface)",
-              color: category === c ? "var(--primary-light)" : "var(--text-muted)",
-              transition: "all 0.15s",
-            }}
           >
             {c}
           </button>
@@ -164,30 +154,36 @@ export default function ExercisesPage() {
       {loading ? (
         <div className="loading">Loading...</div>
       ) : exercises.length === 0 ? (
-        <div className="empty-state">No exercises found.</div>
+        <div className="empty-state">
+          <div className="empty-state-title">No exercises found</div>
+        </div>
       ) : (
-        <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+        <div className="flex-col gap-2">
           {exercises.map(ex => (
-            <div key={ex.id} className="card" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "12px 16px" }}>
-              <div>
-                <div style={{ fontWeight: 600, fontSize: "0.95rem" }}>{ex.name}</div>
-                <div style={{ fontSize: "0.8rem", color: "var(--text-muted)", marginTop: 2 }}>
-                  {ex.category}
-                  {muscleList(ex.muscle_groups || "[]") && ` · ${muscleList(ex.muscle_groups || "[]")}`}
-                  {ex.equipment && ` · ${ex.equipment}`}
-                  {!ex.is_builtin && <span style={{ color: "var(--primary-light)", marginLeft: 6 }}>custom</span>}
+            <div key={ex.id} className="card">
+              <div className="exercise-row" style={{ padding: 0 }}>
+                <div>
+                  <div className="exercise-row-name">
+                    {ex.name}
+                    {!ex.is_builtin && <span className="custom-tag">custom</span>}
+                  </div>
+                  <div className="exercise-row-meta">
+                    {ex.category}
+                    {muscleList(ex.muscle_groups || "[]") && ` · ${muscleList(ex.muscle_groups || "[]")}`}
+                    {ex.equipment && ` · ${ex.equipment}`}
+                  </div>
                 </div>
+                {activeWorkout && (
+                  <button
+                    className="btn btn-primary btn-sm"
+                    onClick={() => addToWorkout(ex.id)}
+                    disabled={addingTo === ex.id}
+                    title={`Add to ${activeWorkout.name}`}
+                  >
+                    {addingTo === ex.id ? "..." : "+ Add"}
+                  </button>
+                )}
               </div>
-              {activeWorkout && (
-                <button
-                  className="btn-primary btn-sm"
-                  onClick={() => addToWorkout(ex.id)}
-                  disabled={addingTo === ex.id}
-                  title={`Add to ${activeWorkout.name}`}
-                >
-                  {addingTo === ex.id ? "..." : "+ Add"}
-                </button>
-              )}
             </div>
           ))}
         </div>

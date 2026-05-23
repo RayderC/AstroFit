@@ -1,5 +1,6 @@
 "use client";
 import { useState, useEffect } from "react";
+import { useUnits } from "@/app/context/UnitsContext";
 
 interface Exercise {
   id: number;
@@ -34,7 +35,7 @@ interface ChartPoint {
 
 function LineChart({ points, color = "var(--primary-light)" }: { points: ChartPoint[]; color?: string }) {
   if (points.length < 2) return (
-    <div style={{ textAlign: "center", color: "var(--text-muted)", fontSize: "0.85rem", padding: "24px 0" }}>
+    <div className="text-muted" style={{ textAlign: "center", fontSize: 14, padding: "24px 0" }}>
       Not enough data to show a chart yet.
     </div>
   );
@@ -59,39 +60,37 @@ function LineChart({ points, color = "var(--primary-light)" }: { points: ChartPo
   const xLast = new Date(points[points.length - 1].date).toLocaleDateString(undefined, { month: "short", day: "numeric" });
 
   return (
-    <svg viewBox={`0 0 ${W} ${H}`} style={{ width: "100%", height: "auto" }}>
-      <defs>
-        <linearGradient id="chartGrad" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor={color} stopOpacity="0.25" />
-          <stop offset="100%" stopColor={color} stopOpacity="0.02" />
-        </linearGradient>
-      </defs>
-      {/* Grid lines */}
-      {yLabels.map((v, i) => {
-        const y = toY(v);
-        return (
-          <g key={i}>
-            <line x1={PL} y1={y} x2={W - PR} y2={y} stroke="var(--border)" strokeWidth="1" />
-            <text x={PL - 4} y={y + 4} textAnchor="end" fontSize="10" fill="var(--text-muted)">{v}</text>
-          </g>
-        );
-      })}
-      {/* Area */}
-      <path d={areaD} fill="url(#chartGrad)" />
-      {/* Line */}
-      <path d={pathD} fill="none" stroke={color} strokeWidth="2.5" strokeLinejoin="round" />
-      {/* Dots */}
-      {points.map((p, i) => (
-        <circle key={i} cx={toX(i)} cy={toY(p.value)} r="3.5" fill={color} />
-      ))}
-      {/* X labels */}
-      <text x={PL} y={H - 4} fontSize="10" fill="var(--text-muted)">{xFirst}</text>
-      <text x={W - PR} y={H - 4} fontSize="10" fill="var(--text-muted)" textAnchor="end">{xLast}</text>
-    </svg>
+    <div className="chart-wrap">
+      <svg viewBox={`0 0 ${W} ${H}`}>
+        <defs>
+          <linearGradient id="chartGrad" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor={color} stopOpacity="0.25" />
+            <stop offset="100%" stopColor={color} stopOpacity="0.02" />
+          </linearGradient>
+        </defs>
+        {yLabels.map((v, i) => {
+          const y = toY(v);
+          return (
+            <g key={i}>
+              <line x1={PL} y1={y} x2={W - PR} y2={y} stroke="var(--border)" strokeWidth="1" />
+              <text x={PL - 4} y={y + 4} textAnchor="end" fontSize="10" fill="var(--text-muted)">{v}</text>
+            </g>
+          );
+        })}
+        <path d={areaD} fill="url(#chartGrad)" />
+        <path d={pathD} fill="none" stroke={color} strokeWidth="2.5" strokeLinejoin="round" />
+        {points.map((p, i) => (
+          <circle key={i} cx={toX(i)} cy={toY(p.value)} r="3.5" fill={color} />
+        ))}
+        <text x={PL} y={H - 4} fontSize="10" fill="var(--text-muted)">{xFirst}</text>
+        <text x={W - PR} y={H - 4} fontSize="10" fill="var(--text-muted)" textAnchor="end">{xLast}</text>
+      </svg>
+    </div>
   );
 }
 
 export default function ProgressPage() {
+  const { weightUnit } = useUnits();
   const [exercises, setExercises] = useState<Exercise[]>([]);
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const [history, setHistory] = useState<ExerciseHistory | null>(null);
@@ -114,15 +113,12 @@ export default function ProgressPage() {
 
   const getChartPoints = (): ChartPoint[] => {
     if (!history?.sets.length) return [];
-
-    // Group by date, pick best set per day
     const byDate: Record<string, HistorySet[]> = {};
     for (const s of history.sets) {
       const date = s.workout_date.split("T")[0];
       if (!byDate[date]) byDate[date] = [];
       byDate[date].push(s);
     }
-
     const points: ChartPoint[] = Object.entries(byDate)
       .sort(([a], [b]) => a.localeCompare(b))
       .map(([date, sets]) => {
@@ -132,50 +128,36 @@ export default function ProgressPage() {
         } else if (metric === "volume") {
           value = sets.reduce((sum, s) => sum + s.weight * s.reps, 0);
         } else {
-          // Epley 1RM estimate
           value = Math.max(...sets.map(s => s.weight * (1 + s.reps / 30)));
         }
-        return { date, value: Math.round(value * 10) / 10, label: `${value.toFixed(1)}kg` };
+        return { date, value: Math.round(value * 10) / 10, label: `${value.toFixed(1)}${weightUnit}` };
       });
-
-    return points.slice(-30); // last 30 sessions
+    return points.slice(-30);
   };
 
-  const filtered = exercises.filter(e =>
-    !query || e.name.toLowerCase().includes(query.toLowerCase())
-  );
+  const filtered = exercises.filter(e => !query || e.name.toLowerCase().includes(query.toLowerCase()));
 
   return (
-    <div style={{ maxWidth: 680 }}>
-      <h1 style={{ fontSize: "1.5rem", fontWeight: 700, marginBottom: 24 }}>Progress</h1>
+    <div className="content-narrow">
+      <div className="dash-header">
+        <h1 className="dash-title">Progress</h1>
+      </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "220px 1fr", gap: 20, alignItems: "start" }}>
-        {/* Exercise selector */}
+      <div className="progress-grid">
         <div className="card" style={{ padding: 12 }}>
           <input
             className="form-input"
             placeholder="Search..."
             value={query}
             onChange={e => setQuery(e.target.value)}
-            style={{ marginBottom: 10, fontSize: "0.85rem" }}
+            style={{ marginBottom: 10 }}
           />
-          <div style={{ maxHeight: 480, overflowY: "auto", display: "flex", flexDirection: "column", gap: 4 }}>
+          <div className="progress-exercise-list">
             {filtered.map(ex => (
               <button
                 key={ex.id}
+                className={`progress-exercise-btn${selectedId === ex.id ? " selected" : ""}`}
                 onClick={() => setSelectedId(ex.id)}
-                style={{
-                  background: selectedId === ex.id ? "rgba(124,14,179,0.15)" : "transparent",
-                  border: "1px solid",
-                  borderColor: selectedId === ex.id ? "var(--primary)" : "transparent",
-                  borderRadius: 6,
-                  padding: "6px 10px",
-                  textAlign: "left",
-                  cursor: "pointer",
-                  color: "var(--text)",
-                  fontSize: "0.85rem",
-                  fontWeight: selectedId === ex.id ? 600 : 400,
-                }}
               >
                 {ex.name}
               </button>
@@ -183,7 +165,6 @@ export default function ProgressPage() {
           </div>
         </div>
 
-        {/* Chart panel */}
         <div>
           {!selectedId ? (
             <div className="empty-state">Select an exercise to see progress charts.</div>
@@ -192,39 +173,30 @@ export default function ProgressPage() {
           ) : (
             <>
               {history?.pr && (
-                <div className="card" style={{ marginBottom: 16, background: "rgba(124,14,179,0.08)", borderColor: "var(--primary)" }}>
-                  <div style={{ fontSize: "0.75rem", color: "var(--primary-light)", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 4 }}>Personal Record</div>
-                  <div style={{ display: "flex", gap: 20 }}>
+                <div className="pr-banner" style={{ marginBottom: 16 }}>
+                  <div className="pr-banner-label">Personal Record</div>
+                  <div className="pr-banner-values">
                     <div>
-                      <span style={{ fontSize: "1.3rem", fontWeight: 700 }}>{history.pr.best_weight}kg</span>
-                      <span style={{ fontSize: "0.85rem", color: "var(--text-muted)", marginLeft: 4 }}>× {history.pr.best_reps} reps</span>
+                      <span className="pr-banner-main">{history.pr.best_weight}{weightUnit}</span>
+                      <span className="pr-banner-reps">× {history.pr.best_reps} reps</span>
                     </div>
                     <div>
-                      <span style={{ fontSize: "0.82rem", color: "var(--text-muted)" }}>Est. 1RM: </span>
-                      <span style={{ fontSize: "1.1rem", fontWeight: 700, color: "var(--accent-cyan)" }}>{history.pr.estimated_1rm.toFixed(1)}kg</span>
+                      <div style={{ fontSize: 12, color: "var(--text-muted)" }}>Est. 1RM</div>
+                      <span className="pr-banner-1rm">{history.pr.estimated_1rm.toFixed(1)}{weightUnit}</span>
                     </div>
                   </div>
                 </div>
               )}
 
               <div className="card" style={{ marginBottom: 16 }}>
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
-                  <div style={{ fontSize: "0.9rem", fontWeight: 600 }}>Last 30 Sessions</div>
-                  <div style={{ display: "flex", gap: 6 }}>
+                <div className="card-header">
+                  <span className="card-title">Last 30 Sessions</span>
+                  <div className="metric-tabs">
                     {(["weight", "volume", "1rm"] as const).map(m => (
                       <button
                         key={m}
+                        className={`metric-tab${metric === m ? " active" : ""}`}
                         onClick={() => setMetric(m)}
-                        style={{
-                          padding: "3px 10px",
-                          borderRadius: 4,
-                          fontSize: "0.78rem",
-                          cursor: "pointer",
-                          border: "1px solid",
-                          borderColor: metric === m ? "var(--primary-light)" : "var(--border)",
-                          background: metric === m ? "rgba(168,85,247,0.15)" : "transparent",
-                          color: metric === m ? "var(--primary-light)" : "var(--text-muted)",
-                        }}
                       >
                         {m === "1rm" ? "Est. 1RM" : m.charAt(0).toUpperCase() + m.slice(1)}
                       </button>
@@ -236,12 +208,14 @@ export default function ProgressPage() {
 
               {history && history.sets.length > 0 && (
                 <div className="card">
-                  <div style={{ fontSize: "0.9rem", fontWeight: 600, marginBottom: 12 }}>Recent Sets</div>
-                  <div style={{ display: "flex", flexDirection: "column", gap: 4, maxHeight: 240, overflowY: "auto" }}>
+                  <div className="card-header">
+                    <span className="card-title">Recent Sets</span>
+                  </div>
+                  <div className="recent-sets-scroll">
                     {history.sets.slice(0, 20).map((s, i) => (
-                      <div key={i} style={{ display: "flex", justifyContent: "space-between", fontSize: "0.85rem", padding: "4px 0", borderBottom: "1px solid var(--border)" }}>
-                        <span style={{ color: "var(--text)" }}>{s.weight}kg × {s.reps} reps</span>
-                        <span style={{ color: "var(--text-muted)" }}>
+                      <div key={i} className="recent-set-row">
+                        <span>{s.weight}{weightUnit} × {s.reps} reps</span>
+                        <span className="text-muted">
                           {new Date(s.workout_date).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })}
                         </span>
                       </div>

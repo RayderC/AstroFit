@@ -4,10 +4,10 @@ import Link from "next/link";
 
 const TARGET_TYPES = [
   { value: "workout_count", label: "Workouts Completed" },
-  { value: "cardio_km", label: "Cardio Distance (km)" },
-  { value: "cardio_count", label: "Cardio Sessions" },
-  { value: "volume_kg", label: "Volume Lifted (kg)" },
-  { value: "pr_count", label: "Personal Records" },
+  { value: "cardio_km",     label: "Cardio Distance (km)" },
+  { value: "cardio_count",  label: "Cardio Sessions" },
+  { value: "volume_kg",     label: "Volume Lifted (kg)" },
+  { value: "pr_count",      label: "Personal Records" },
 ];
 
 const CATEGORIES = ["strength", "cardio", "wildcard"];
@@ -77,18 +77,19 @@ export default function AdminPage() {
   const special = challenges.filter(c => c.type === "special");
 
   return (
-    <div style={{ maxWidth: 700 }}>
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 24 }}>
-        <h1 style={{ fontSize: "1.5rem", fontWeight: 700 }}>Admin Panel</h1>
-        <Link href="/dashboard/admin/users" className="btn-secondary btn-sm">
+    <div className="content-wide">
+      <div className="dash-header">
+        <h1 className="dash-title">Admin Panel</h1>
+        <Link href="/dashboard/admin/users" className="btn btn-secondary btn-sm">
           Manage Users
         </Link>
       </div>
 
-      {/* Create challenge */}
       <div className="card" style={{ marginBottom: 28 }}>
-        <h2 style={{ fontSize: "1rem", fontWeight: 600, marginBottom: 16 }}>Create Special Challenge</h2>
-        <div style={{ display: "grid", gap: 12 }}>
+        <div className="card-header">
+          <span className="card-title">Create Special Challenge</span>
+        </div>
+        <div className="inline-form">
           <input
             className="form-input"
             placeholder="Challenge title"
@@ -101,63 +102,64 @@ export default function AdminPage() {
             value={form.description}
             onChange={e => setForm(f => ({ ...f, description: e.target.value }))}
           />
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-            <div>
+          <div className="form-grid-2">
+            <div className="form-group">
               <label className="form-label">Category</label>
-              <select className="form-input" value={form.category} onChange={e => setForm(f => ({ ...f, category: e.target.value }))}>
+              <select className="form-select" value={form.category} onChange={e => setForm(f => ({ ...f, category: e.target.value }))}>
                 {CATEGORIES.map(c => <option key={c} value={c}>{c.charAt(0).toUpperCase() + c.slice(1)}</option>)}
               </select>
             </div>
-            <div>
+            <div className="form-group">
               <label className="form-label">Target Type</label>
-              <select className="form-input" value={form.targetType} onChange={e => setForm(f => ({ ...f, targetType: e.target.value }))}>
+              <select className="form-select" value={form.targetType} onChange={e => setForm(f => ({ ...f, targetType: e.target.value }))}>
                 {TARGET_TYPES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
               </select>
             </div>
-            <div>
+            <div className="form-group">
               <label className="form-label">Target Value</label>
               <input className="form-input" type="number" min="1" value={form.targetValue} onChange={e => setForm(f => ({ ...f, targetValue: e.target.value }))} />
             </div>
-            <div>
+            <div className="form-group">
               <label className="form-label">XP Reward</label>
               <input className="form-input" type="number" min="1" value={form.xpReward} onChange={e => setForm(f => ({ ...f, xpReward: e.target.value }))} />
             </div>
-            <div>
+            <div className="form-group">
               <label className="form-label">Starts At</label>
               <input className="form-input" type="date" value={form.startsAt} onChange={e => setForm(f => ({ ...f, startsAt: e.target.value }))} />
             </div>
-            <div>
+            <div className="form-group">
               <label className="form-label">Ends At</label>
               <input className="form-input" type="date" value={form.endsAt} onChange={e => setForm(f => ({ ...f, endsAt: e.target.value }))} />
             </div>
           </div>
-          <button className="btn-primary" onClick={createChallenge} disabled={creating} style={{ justifySelf: "start" }}>
+          <button className="btn btn-primary" onClick={createChallenge} disabled={creating}>
             {creating ? "Creating..." : "Create Challenge"}
           </button>
         </div>
       </div>
 
-      {/* Special challenges list */}
       <section>
-        <h2 style={{ fontSize: "0.85rem", fontWeight: 600, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 12 }}>
-          Special Challenges ({special.length})
-        </h2>
+        <div className="section-label">Special Challenges ({special.length})</div>
         {special.length === 0 ? (
-          <div className="empty-state">No special challenges created yet.</div>
+          <div className="empty-state">
+            <div className="empty-state-title">No special challenges yet</div>
+          </div>
         ) : (
-          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+          <div className="flex-col gap-2">
             {special.map(ch => (
-              <div key={ch.id} className="card" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                <div>
-                  <div style={{ fontWeight: 600 }}>{ch.title}</div>
-                  <div style={{ fontSize: "0.82rem", color: "var(--text-muted)", marginTop: 2 }}>
-                    {ch.category} · {TARGET_TYPES.find(t => t.value === ch.target_type)?.label} = {ch.target_value} · +{ch.xp_reward} XP
+              <div key={ch.id} className="card">
+                <div className="template-row" style={{ padding: 0 }}>
+                  <div>
+                    <div className="template-row-name">{ch.title}</div>
+                    <div className="template-row-meta">
+                      {ch.category} · {TARGET_TYPES.find(t => t.value === ch.target_type)?.label} = {ch.target_value} · +{ch.xp_reward} XP
+                    </div>
+                    <div className="template-row-meta">
+                      {new Date(ch.starts_at).toLocaleDateString()} → {new Date(ch.ends_at).toLocaleDateString()}
+                    </div>
                   </div>
-                  <div style={{ fontSize: "0.78rem", color: "var(--text-muted)", marginTop: 2 }}>
-                    {new Date(ch.starts_at).toLocaleDateString()} → {new Date(ch.ends_at).toLocaleDateString()}
-                  </div>
+                  <button className="btn btn-danger btn-sm" onClick={() => deleteChallenge(ch.id)}>Delete</button>
                 </div>
-                <button className="btn-danger btn-sm" onClick={() => deleteChallenge(ch.id)}>Delete</button>
               </div>
             ))}
           </div>

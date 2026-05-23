@@ -1,6 +1,14 @@
 import './globals.css';
 import type { Metadata } from 'next';
+import { JetBrains_Mono } from 'next/font/google';
 import CircuitBackground from './components/CircuitBackground';
+
+const mono = JetBrains_Mono({
+  subsets: ['latin'],
+  weight: ['400', '500', '600', '700', '800'],
+  variable: '--font-jetbrains',
+  display: 'swap',
+});
 
 export const metadata: Metadata = {
   title: 'AstroFit',
@@ -21,7 +29,7 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en">
-      <body>
+      <body className={mono.variable}>
         <CircuitBackground />
         {children}
       </body>
