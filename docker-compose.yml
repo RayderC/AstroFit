@@ -1,0 +1,17 @@
+services:
+  astrofit:
+    image: rayderc/astrofit:latest
+    container_name: astrofit
+    restart: always
+    ports:
+      - 7090:7090
+    environment:
+      - SESSION_COOKIE_SECURE=false
+      # Generate a strong secret: openssl rand -hex 32
+      - SESSION_SECRET=${SESSION_SECRET:-change_me_to_a_random_64_char_string}
+      - DATABASE_PATH=/config/astrofit.db
+    volumes:
+      - astrofit_data:/config
+
+volumes:
+  astrofit_data:
