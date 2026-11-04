@@ -19,6 +19,17 @@ export function toM(value: number, unit: DistanceUnit) {
   return unit === "mi" ? value * M_PER_MI : value * 1000;
 }
 
+
+// Tape measurements are stored in meters. Imperial distance users see inches, metric users cm.
+export type LengthUnit = "in" | "cm";
+export const lengthUnitFor = (d: DistanceUnit): LengthUnit => (d === "mi" ? "in" : "cm");
+export function mToLength(m: number, unit: LengthUnit) {
+  return unit === "in" ? m / 0.0254 : m * 100;
+}
+export function lengthToM(value: number, unit: LengthUnit) {
+  return unit === "in" ? value * 0.0254 : value / 100;
+}
+
 /** Round to sensible precision and drop trailing zeros: 185, 82.5, 3.11 */
 export function trim(n: number, decimals = 2) {
   const f = Math.pow(10, decimals);
