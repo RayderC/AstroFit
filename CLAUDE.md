@@ -26,7 +26,7 @@ Next.js 16 App Router, one Docker container, SQLite. All UI is `"use client"` an
 
 - **Auth**: `proxy.ts` redirects signed-out page requests to `/login` server-side. API routes are excluded from it and check auth through `route()`.
 - **API**: every handler except login and setup uses `route()` from `lib/api.ts`, which handles auth, the CSRF origin check, JSON parsing, errors and `{ admin: true }`. Throw `bad()`, `notFound()` or `HttpError` to return an error. Scope every query to `user.id`; the `own*` helpers in `lib/repo/sessions.ts` do this for sessions, blocks and sets.
-- **Database**: `lib/db.ts` opens the DB on first import. Schema changes go in as a new entry in its `MIGRATIONS` array (versioned with `PRAGMA user_version`), never by editing `SCHEMA_V1` in `lib/schema.ts`, which existing databases won't re-run. `seedLibrary` adds missing built-in exercises on every boot.
+- **Database**: `lib/db.ts` opens the DB on first use, never on import, because `next build` imports every route in parallel workers. Don't query it at module level. Schema changes go in as a new entry in its `MIGRATIONS` array (versioned with `PRAGMA user_version`), never by editing `SCHEMA_V1` in `lib/schema.ts`, which existing databases won't re-run. `seedLibrary` adds missing built-in exercises on every boot.
 - **Client vs server code**: anything importing `lib/db.ts` is server-only. Pages can't import `lib/repo/*`, which is why `app/(app)/body/page.tsx` repeats the measurement list from `lib/repo/body.ts`. Shared shapes live in `lib/types.ts`, and `lib/exerciseSeed.ts` and `lib/units.ts` are safe on both sides.
 
 ## Units and time

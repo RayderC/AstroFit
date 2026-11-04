@@ -41,4 +41,15 @@ export function migrate(db: Database.Database) {
 }
 
 const g = globalThis as unknown as { __astrofitDb?: Database.Database };
-export const db: Database.Database = g.__astrofitDb ?? (g.__astrofitDb = open());
+
+/**
+ * Opens on first use, not on import. `next build` imports every route in parallel workers, and opening
+ * there makes them race to switch one new file to WAL mode, failing the build with SQLITE_BUSY.
+ */
+export const db = new Proxy({} as Database.Database, {
+  get(_target, prop) {
+    const real = g.__astrofitDb ?? (g.__astrofitDb = open());
+    const value = Reflect.get(real, prop);
+    return typeof value === "function" ? value.bind(real) : value;
+  },
+});
