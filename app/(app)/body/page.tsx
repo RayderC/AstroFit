@@ -128,7 +128,7 @@ export default function BodyPage() {
                 <span className="card-title">{c.title}</span>
                 <span className="row-sub">{dec1(c.points[c.points.length - 1].y)} {c.unit}</span>
               </div>
-              <Chart points={c.points} fmt={dec1} height={150} color={c.key === "weight" || c.key === "fat" ? undefined : "var(--accent-cyan)"}
+              <Chart points={c.points} fmt={dec1} width={380} height={170} color={c.key === "weight" || c.key === "fat" ? undefined : "var(--accent-cyan)"}
                 label={p => `${fmtDate(p.x)} · ${dec1(p.y)} ${c.unit}`} />
             </div>
           ))}

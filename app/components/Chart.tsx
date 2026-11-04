@@ -19,14 +19,14 @@ function niceTicks(min: number, max: number, n = 4) {
 const shortDate = (iso: string) => new Date(iso.length === 10 ? iso + "T12:00:00" : iso).toLocaleDateString(undefined, { month: "short", day: "numeric" });
 
 /** Line chart (or bars with kind="bar") with a tap/hover readout. */
-export default function Chart({ points, fmt = v => String(Math.round(v)), kind = "line", color = "var(--primary-light)", height = 180, label }: {
-  points: Pt[]; fmt?: (v: number) => string; kind?: "line" | "bar"; color?: string; height?: number; label?: (p: Pt) => string;
+export default function Chart({ points, fmt = v => String(Math.round(v)), kind = "line", color = "var(--primary-light)", width = 600, height = 180, label }: {
+  points: Pt[]; fmt?: (v: number) => string; kind?: "line" | "bar"; color?: string; width?: number; height?: number; label?: (p: Pt) => string;
 }) {
   const [hi, setHi] = useState<number | null>(null);
   const gid = "g" + useId().replace(/:/g, "");
   if (!points.length) return <div className="empty-state-desc" style={{ padding: "30px 0", textAlign: "center" }}>No data yet</div>;
 
-  const W = 600, H = height, L = 44, R = 10, T = 10, B = 24;
+  const W = width, H = height, L = 44, R = 10, T = 10, B = 24;
   const ys = points.map(p => p.y);
   const ticks = niceTicks(kind === "bar" ? 0 : Math.min(...ys), Math.max(...ys));
   const y0 = ticks[0], y1 = ticks[ticks.length - 1];

@@ -55,7 +55,7 @@ export default function SettingsPage() {
         <div className="settings-row">
           <div><div className="settings-label">Export</div><div className="settings-hint">CSV (one row per set, Strong-style) or full JSON backup</div></div>
           <div className="flex gap-2">
-            <a className="btn-secondary btn-sm" href="/api/export?format=csv"><Icon name="download" size={14} /> CSV</a>
+            <a className="btn-secondary btn-sm" onClick={e => { e.currentTarget.href = `/api/export?format=csv&tz=${encodeURIComponent(Intl.DateTimeFormat().resolvedOptions().timeZone)}`; }} href="/api/export?format=csv"><Icon name="download" size={14} /> CSV</a>
             <a className="btn-secondary btn-sm" href="/api/export?format=json"><Icon name="download" size={14} /> JSON</a>
           </div>
         </div>
