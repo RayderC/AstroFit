@@ -219,6 +219,13 @@ export function addLiftBlock(user: UserRow, sessionId: number, exerciseId: numbe
   o: { setsCount?: number | null; repMin?: number | null; repMax?: number | null; restS?: number | null; targetWeightKg?: number | null; superset?: number | null; notes?: string | null } = {}) {
   ownSession(user.id, sessionId);
   getExerciseRow(user.id, exerciseId);
+  if (o.repMin == null && o.repMax == null) {
+    // keep the rep range you used last time
+    const last = db.prepare(`SELECT b.rep_min, b.rep_max FROM blocks b JOIN sessions se ON se.id = b.session_id
+      WHERE se.user_id = ? AND b.exercise_id = ? AND b.rep_min IS NOT NULL AND se.id != ? ORDER BY se.started_at DESC LIMIT 1`)
+      .get(user.id, exerciseId, sessionId) as { rep_min: number; rep_max: number } | undefined;
+    if (last) o = { ...o, repMin: last.rep_min, repMax: last.rep_max };
+  }
   const info = db.prepare(`INSERT INTO blocks (session_id, kind, position, superset, exercise_id, rep_min, rep_max, rest_s, notes)
     VALUES (?, 'lift', ?, ?, ?, ?, ?, ?, ?)`).run(sessionId, nextPosition(sessionId), o.superset ?? null, exerciseId,
     o.repMin ?? null, o.repMax ?? null, o.restS ?? null, o.notes ?? null);
