@@ -5,7 +5,7 @@ import { e1rm } from "../units";
 import { getActivity, getExerciseRow, getPrefs, setPrefs, toExerciseDTO, type ExerciseRow } from "./exercises";
 import { exerciseDisplayName } from "../exerciseSeed";
 import type {
-  BlockDTO, CardioDTO, PrevSet, RecordHit, SessionDTO, SessionSummary, SetDTO, SetKind,
+  BlockDTO, CardioDTO, PrevSet, RecordHit, RoutineBlockDTO, SessionDTO, SessionSummary, SetDTO, SetKind,
 } from "../types";
 
 type SessionRow = {
@@ -265,6 +265,25 @@ export function startFromRoutine(user: UserRow, routineId: number) {
       } else if (b.kind === "cardio" && b.activity_type_id) {
         addCardioBlock(user, sid, b.activity_type_id, { durationS: b.target_duration_s, distanceM: b.target_distance_m, notes: b.notes });
       }
+    }
+    return sid;
+  })();
+}
+
+/** Start a session straight from a generated plan, without saving a routine. */
+export function startFromBlocks(user: UserRow, name: string, blocks: RoutineBlockDTO[]) {
+  if (!Array.isArray(blocks) || !blocks.length || blocks.length > 60) throw bad("Nothing to start");
+  return db.transaction(() => {
+    const sid = createSession(user, { name });
+    for (const b of blocks) {
+      if (b.kind === "lift" && b.exerciseId) {
+        addLiftBlock(user, sid, Number(b.exerciseId), {
+          setsCount: b.setsCount, repMin: b.repMin, repMax: b.repMax, restS: b.restS,
+          targetWeightKg: b.targetWeightKg, superset: b.superset, notes: b.notes,
+        });
+      } else if (b.kind === "cardio" && b.activityTypeId) {
+        addCardioBlock(user, sid, Number(b.activityTypeId), { durationS: b.targetDurationS, distanceM: b.targetDistanceM, notes: b.notes });
+      } else throw bad("Invalid block");
     }
     return sid;
   })();

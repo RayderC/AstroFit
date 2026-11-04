@@ -1,5 +1,5 @@
 import { route, bad, int } from "@/lib/api";
-import { createSession, getSession, listSessions, startFromRoutine, addCardioBlock } from "@/lib/repo/sessions";
+import { createSession, getSession, listSessions, startFromBlocks, startFromRoutine, addCardioBlock } from "@/lib/repo/sessions";
 import { db } from "@/lib/db";
 
 // GET /api/sessions?from=ISO&to=ISO&limit=N
@@ -12,10 +12,12 @@ export const GET = route(({ req, user }) => {
   });
 });
 
-// POST { routineId? , name?, past?: {startedAt, endedAt}, cardio?: {activityTypeId, durationS, distanceM} }
+// POST { routineId? , blocks?, name?, past?: {startedAt, endedAt}, cardio?: {activityTypeId, durationS, distanceM} }
 export const POST = route(({ user, body }) => {
   const b = body ?? {};
   if (b.routineId) return { id: startFromRoutine(user, int(b.routineId, "routine")) };
+  // generated workout from the builder: start it without saving a routine
+  if (b.blocks) return { id: startFromBlocks(user, String(b.name ?? ""), b.blocks) };
   if (b.past) {
     // logging a workout after the fact
     const { startedAt, endedAt } = b.past;
