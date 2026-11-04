@@ -1,35 +1,42 @@
-// AstroFit service worker — cache-first for static, network-first for API
-const CACHE = "astrofit-v1";
-const STATIC = ["/", "/dashboard", "/offline.html"];
+// Network first: always try for fresh pages, and fall back to the last copy when offline.
+// API calls are never cached, so workout data can't go stale or outlive a sign-out.
+const CACHE = "astrofit-v2";
+const PRECACHE = ["/offline.html", "/icons/icon-192.png", "/icons/icon-512.png"];
 
-self.addEventListener("install", e => {
-  e.waitUntil(
-    caches.open(CACHE).then(c => c.addAll(STATIC)).then(() => self.skipWaiting())
+self.addEventListener("install", event => {
+  event.waitUntil(caches.open(CACHE).then(c => c.addAll(PRECACHE)).then(() => self.skipWaiting()));
+});
+
+self.addEventListener("activate", event => {
+  event.waitUntil(
+    caches.keys()
+      .then(keys => Promise.all(keys.filter(k => k !== CACHE).map(k => caches.delete(k))))
+      .then(() => self.clients.claim()),
   );
 });
 
-self.addEventListener("activate", e => {
-  e.waitUntil(
-    caches.keys().then(keys => Promise.all(
-      keys.filter(k => k !== CACHE).map(k => caches.delete(k))
-    )).then(() => self.clients.claim())
-  );
-});
+self.addEventListener("fetch", event => {
+  const req = event.request;
+  const url = new URL(req.url);
+  if (req.method !== "GET" || url.origin !== self.location.origin || url.pathname.startsWith("/api/")) return;
+  // Router fetches get a new ?_rsc= value each time, so saving them would grow the cache forever.
+  if (url.searchParams.has("_rsc")) return;
 
-self.addEventListener("fetch", e => {
-  const url = new URL(e.request.url);
-  // Skip non-GET and API routes
-  if (e.request.method !== "GET" || url.pathname.startsWith("/api/")) return;
-
-  e.respondWith(
-    fetch(e.request)
+  event.respondWith(
+    fetch(req)
       .then(res => {
-        if (res.ok) {
-          const clone = res.clone();
-          caches.open(CACHE).then(c => c.put(e.request, clone));
+        // Skip redirects: a signed-out redirect to /login mustn't be saved as the copy of that page.
+        if (res.ok && !res.redirected && res.type === "basic") {
+          const copy = res.clone();
+          caches.open(CACHE).then(c => c.put(req, copy));
         }
         return res;
       })
-      .catch(() => caches.match(e.request))
+      .catch(async () => {
+        const hit = await caches.match(req);
+        if (hit) return hit;
+        if (req.mode === "navigate") return (await caches.match("/offline.html")) ?? Response.error();
+        return Response.error();
+      }),
   );
 });

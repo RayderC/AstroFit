@@ -1,29 +1,30 @@
-import './globals.css';
-import type { Metadata } from 'next';
-import { JetBrains_Mono } from 'next/font/google';
-import CircuitBackground from './components/CircuitBackground';
+import "./globals.css";
+import type { Metadata, Viewport } from "next";
+import { JetBrains_Mono } from "next/font/google";
+import CircuitBackground from "./components/CircuitBackground";
+import SwRegister from "./components/SwRegister";
 
 const mono = JetBrains_Mono({
-  subsets: ['latin'],
-  weight: ['400', '500', '600', '700', '800'],
-  variable: '--font-jetbrains',
-  display: 'swap',
+  subsets: ["latin"],
+  weight: ["400", "500", "600", "700", "800"],
+  variable: "--font-jetbrains",
+  display: "swap",
 });
 
 export const metadata: Metadata = {
-  title: 'AstroFit',
-  description: 'Self-hosted fitness tracker with XP, levels, and challenges.',
-  manifest: '/manifest.json',
-  icons: {
-    icon: '/favicon.png',
-    apple: '/icons/apple-touch-icon-180x180.png',
-  },
-  appleWebApp: {
-    capable: true,
-    statusBarStyle: 'black-translucent',
-    title: 'AstroFit',
-  },
-  other: { 'mobile-web-app-capable': 'yes' },
+  title: "AstroFit",
+  description: "Self-hosted lifting and cardio tracker.",
+  manifest: "/manifest.webmanifest",
+  icons: { icon: "/icons/icon-192.png", apple: "/icons/apple-touch-icon.png" },
+  appleWebApp: { capable: true, statusBarStyle: "black-translucent", title: "AstroFit" },
+  other: { "mobile-web-app-capable": "yes" },
+};
+
+export const viewport: Viewport = {
+  themeColor: "#0a0a12",
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
@@ -31,6 +32,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="en">
       <body className={mono.variable}>
         <CircuitBackground />
+        <SwRegister />
         {children}
       </body>
     </html>
