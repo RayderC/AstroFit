@@ -13,7 +13,7 @@ function open(): Database.Database {
 
   // A v1 AstroFit database gets backed up and converted before anything else touches it.
   if (fs.existsSync(DB_PATH) && isV1Database(DB_PATH)) {
-    migrateFromV1(DB_PATH);
+    migrateFromV1(DB_PATH, migrate);
   }
 
   const db = new Database(DB_PATH);
