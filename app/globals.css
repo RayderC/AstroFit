@@ -1466,3 +1466,9 @@ button.row-card { width: 100%; text-align: left; cursor: pointer; font-family: i
   .auth-card { padding: 32px 22px; }
   .heatmap { gap: 4px; }
 }
+
+/* exercise history sets */
+.hist-sets { display: flex; flex-direction: column; gap: 3px; margin-top: 8px; }
+.hist-set { display: flex; align-items: center; gap: 8px; font-family: var(--font-mono); font-size: 13px; color: var(--text-muted); }
+.set-label.sm { height: 22px; min-width: 26px; display: inline-flex; align-items: center; justify-content: center; font-size: 11px; padding: 0 4px; }
+.routine-name { font-size: 20px !important; font-weight: 800; }
