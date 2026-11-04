@@ -80,7 +80,7 @@ export default function ImportPage() {
       <Link href="/settings" className="view-all-link"><Icon name="back" size={12} /> Settings</Link>
       <div className="dash-header" style={{ marginTop: 10 }}><div>
         <h1 className="dash-title">Import from Strong</h1>
-        <p className="dash-subtitle">In Strong: Profile → Settings → Export Data, then choose that CSV here.</p>
+        <p className="dash-subtitle">Export your data as a CSV from Strong&apos;s settings, then choose that file here.</p>
       </div></div>
 
       {err && <p className="form-error" style={{ marginBottom: 12 }}>{err}</p>}
