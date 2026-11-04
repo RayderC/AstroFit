@@ -54,7 +54,8 @@ export function parseNum(v: string): number | null {
 }
 
 export function fmtDate(iso: string, opts: Intl.DateTimeFormatOptions = { month: "short", day: "numeric", year: "numeric" }) {
-  return new Date(iso).toLocaleDateString(undefined, opts);
+  // A bare YYYY-MM-DD parses as UTC midnight, which is the previous day west of Greenwich.
+  return new Date(iso.length === 10 ? `${iso}T12:00:00` : iso).toLocaleDateString(undefined, opts);
 }
 
 export function fmtTime(iso: string) {
