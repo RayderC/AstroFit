@@ -10,7 +10,7 @@ import { RestModal, setLabels } from "@/app/components/session/LiftCard";
 import { muscleLabel } from "@/app/components/ExercisePicker";
 import { useMe } from "@/app/components/MeContext";
 import { api, fmtDate, parseNum, useApi } from "@/lib/client";
-import { equipmentLabel } from "@/lib/exerciseSeed";
+import { equipmentLabel, MUSCLES } from "@/lib/exerciseSeed";
 import { fmtDuration, fmtWeight, kgTo, toKg } from "@/lib/units";
 import type { ExerciseDTO, SetKind, Suggestion } from "@/lib/types";
 
@@ -40,7 +40,7 @@ export default function ExerciseDetailPage({ params }: { params: Promise<{ id: s
   const { data, reload } = useApi<Detail>(`/api/exercises/${id}`);
   const [tab, setTab] = useState<"history" | "charts" | "records">("history");
   const [metric, setMetric] = useState<"e1rm" | "top" | "volume" | "reps">("e1rm");
-  const [modal, setModal] = useState<null | "rest" | "inc" | "note">(null);
+  const [modal, setModal] = useState<null | "rest" | "inc" | "note" | "muscles">(null);
 
   if (!data) return <div className="loading">Loading…</div>;
   const ex = data.exercise;
@@ -89,6 +89,7 @@ export default function ExerciseDetailPage({ params }: { params: Promise<{ id: s
         <button className="mini-chip" onClick={() => setModal("rest")}><Icon name="timer" size={12} /> Rest {data.prefs.restS != null ? fmtDuration(data.prefs.restS) : `${fmtDuration(me.restDefault)} (default)`}</button>
         {lt === "weight_reps" && <button className="mini-chip" onClick={() => setModal("inc")}><Icon name="up" size={12} /> Step +{fmtWeight(data.prefs.effectiveIncrementKg, u)} {u}</button>}
         <button className={`mini-chip ${data.prefs.note ? "note" : "ghost"}`} onClick={() => setModal("note")}><Icon name="note" size={12} /> {data.prefs.note || "Add note"}</button>
+        {!ex.isBuiltin && <button className={`mini-chip ${ex.primary.length ? "" : "note"}`} onClick={() => setModal("muscles")}><Icon name="body" size={12} /> {ex.primary.length ? "Edit muscles" : "Set muscles"}</button>}
       </div>
 
       <div className="tabs">
@@ -167,6 +168,9 @@ export default function ExerciseDetailPage({ params }: { params: Promise<{ id: s
       {modal === "rest" && <RestModal value={data.prefs.restS ?? me.restDefault} showDefault={false} onClose={() => setModal(null)} onSave={v => savePrefs({ restS: v })} />}
       {modal === "inc" && <IncModal kg={data.prefs.effectiveIncrementKg} custom={data.prefs.incrementKg != null} onClose={() => setModal(null)} onSave={v => savePrefs({ incrementKg: v })} />}
       {modal === "note" && <NoteEdit value={data.prefs.note ?? ""} onClose={() => setModal(null)} onSave={v => savePrefs({ note: v || null })} />}
+      {modal === "muscles" && <MusclesEdit primary={ex.primary} secondary={ex.secondary} onClose={() => setModal(null)} onSave={async b => {
+        await api(`/api/exercises/${id}`, { method: "PATCH", body: b }); reload(); setModal(null);
+      }} />}
     </div>
   );
 }
@@ -187,6 +191,22 @@ function IncModal({ kg, custom, onClose, onSave }: { kg: number; custom: boolean
       <p className="form-hint" style={{ marginBottom: 12 }}>How much to add when you&apos;re ready to go up. Smaller lifts like lateral raises usually need a smaller step.</p>
       <div className="chip-wrap" style={{ marginBottom: 12 }}>{presets.map(p => <button key={p} className={`filter-chip ${v === String(p) ? "active" : ""}`} onClick={() => setV(String(p))}>+{p} {me.weightUnit}</button>)}</div>
       <input className="form-input" inputMode="decimal" value={v} onChange={e => setV(e.target.value)} />
+    </Modal>
+  );
+}
+
+function MusclesEdit({ primary, secondary, onClose, onSave }: { primary: string[]; secondary: string[]; onClose: () => void; onSave: (b: { primary: string[]; secondary: string[] }) => void }) {
+  const [p, setP] = useState(primary);
+  const [s, setS] = useState(secondary);
+  const chips = (arr: string[], set: (v: string[]) => void) => (
+    <div className="chip-wrap">{MUSCLES.map(m => <button key={m.id} type="button" className={`filter-chip ${arr.includes(m.id) ? "active" : ""}`} onClick={() => set(arr.includes(m.id) ? arr.filter(x => x !== m.id) : [...arr, m.id])}>{m.label}</button>)}</div>
+  );
+  return (
+    <Modal title="Muscles worked" onClose={onClose} footer={<button className="btn-primary" onClick={() => onSave({ primary: p, secondary: s })}>Save</button>}>
+      <div className="form-stack">
+        <div className="form-group"><label className="form-label">Primary</label>{chips(p, setP)}</div>
+        <div className="form-group"><label className="form-label">Secondary</label>{chips(s, setS)}</div>
+      </div>
     </Modal>
   );
 }
