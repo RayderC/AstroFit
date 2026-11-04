@@ -27,7 +27,8 @@ export default function SetupPage() {
       body: JSON.stringify({ username: f.get("username"), password: f.get("password"), weightUnit: wu, distanceUnit: du }),
     });
     setLoading(false);
-    if (res.ok) router.replace("/");
+    // Full navigation: see the note in app/login/page.tsx.
+    if (res.ok) window.location.replace("/");
     else setError((await res.json().catch(() => ({}))).message || "Setup failed");
   }
 

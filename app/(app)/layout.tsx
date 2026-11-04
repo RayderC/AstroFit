@@ -40,7 +40,8 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
 
   async function logout() {
     await api("/api/logout", { method: "POST" });
-    router.replace("/login");
+    // Full navigation so the router drops its cached signed-in pages.
+    window.location.replace("/login");
   }
 
   async function goWorkout() {

@@ -27,7 +27,9 @@ export default function LoginPage() {
       body: JSON.stringify({ username: f.get("username"), password: f.get("password") }),
     });
     setLoading(false);
-    if (res.ok) router.replace("/");
+    // Full navigation, not router.replace: while signed out the router prefetched "/" and cached
+    // proxy.ts's redirect to /login, which it would replay here.
+    if (res.ok) window.location.replace("/");
     else setError((await res.json().catch(() => ({}))).message || "Sign in failed");
   }
 
