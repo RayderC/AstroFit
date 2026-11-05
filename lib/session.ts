@@ -1,6 +1,7 @@
 import { SessionOptions } from "iron-session";
 
-export type SessionUser = { id: number; username: string };
+/** `v` is the user's token_version at sign-in. Changing a password bumps it, which ends other sessions. */
+export type SessionUser = { id: number; username: string; v?: number };
 
 const PLACEHOLDER = "build_time_placeholder_secret_at_least_32_chars";
 const isBuild = process.env.NEXT_PHASE === "phase-production-build";
@@ -15,14 +16,13 @@ if (sessionPassword.length < 32) {
   throw new Error("SESSION_SECRET must be at least 32 characters");
 }
 
-const secureEnv = process.env.SESSION_COOKIE_SECURE;
-
 export const sessionOptions: SessionOptions = {
   password: sessionPassword,
   cookieName: "astrofit_session",
   ttl: 60 * 60 * 24 * 30,
   cookieOptions: {
-    secure: secureEnv == null ? false : secureEnv === "true",
+    // lib/api.ts decides this per request, so one image works over plain HTTP and through a tunnel.
+    secure: false,
     httpOnly: true,
     sameSite: "lax",
   },

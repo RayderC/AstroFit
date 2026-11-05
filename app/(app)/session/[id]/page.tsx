@@ -34,7 +34,7 @@ export default function SessionPage({ params }: { params: Promise<{ id: string }
   const router = useRouter();
   const { me } = useMe();
   const { data: s, setData, error } = useApi<SessionDTO>(`/api/sessions/${id}`);
-  const rest = useRestTimer();
+  const rest = useRestTimer(Number(id));
   const [, tick] = useState(0);
   const [picker, setPicker] = useState(false);
   const [cardioPick, setCardioPick] = useState(false);
@@ -115,6 +115,7 @@ export default function SessionPage({ params }: { params: Promise<{ id: string }
 
   async function discard() {
     if (!confirm(finished ? "Delete this workout permanently?" : "Discard this workout? Nothing will be saved.")) return;
+    rest.stop();
     await api(`/api/sessions/${id}`, { method: "DELETE" });
     router.replace(finished ? "/history" : "/");
   }

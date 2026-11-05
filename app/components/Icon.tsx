@@ -30,6 +30,7 @@ const PATHS: Record<string, React.ReactNode> = {
   upload: <><path d="M12 21V9M7 14l5-5 5 5M4 3h16" /></>,
   edit: <><path d="M4 20h4L19 9l-4-4L4 16z" /></>,
   menu: <><path d="M3 6h18M3 12h18M3 18h18" /></>,
+  bell: <><path d="M6 8a6 6 0 1 1 12 0c0 7 3 9 3 9H3s3-2 3-9M10.3 21a2 2 0 0 0 3.4 0" /></>,
 };
 
 export default function Icon({ name, size = 18, className }: { name: string; size?: number; className?: string }) {

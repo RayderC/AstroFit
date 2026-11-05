@@ -1,7 +1,7 @@
 import Database from "better-sqlite3";
 import fs from "fs";
 import path from "path";
-import { SCHEMA_V1, seedLibrary } from "./schema";
+import { SCHEMA_V1, SCHEMA_V2, seedLibrary } from "./schema";
 import { isV1Database, migrateFromV1 } from "./migrateV1";
 
 export const DB_PATH = process.env.DATABASE_PATH || path.join(process.cwd(), "astrofit.db");
@@ -27,6 +27,8 @@ function open(): Database.Database {
 const MIGRATIONS: ((db: Database.Database) => void)[] = [
   // 1: v2 schema
   db => { db.exec(SCHEMA_V1); },
+  // 2: password changes end other sessions, and rest timer notifications
+  db => { db.exec(SCHEMA_V2); },
 ];
 
 export function migrate(db: Database.Database) {

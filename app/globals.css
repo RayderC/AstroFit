@@ -1468,7 +1468,6 @@ button.row-card { width: 100%; text-align: left; cursor: pointer; font-family: i
   .tabbar-main { color: var(--accent-cyan); }
   .tabbar-main svg { filter: drop-shadow(0 0 6px rgba(34, 211, 238, 0.6)); }
   .grid-2 { grid-template-columns: 1fr; }
-  .session-head-top { top: 52px; }
 }
 
 @media (max-width: 640px) {
@@ -1494,3 +1493,28 @@ button.row-card { width: 100%; text-align: left; cursor: pointer; font-family: i
 .hist-set { display: flex; align-items: center; gap: 8px; font-family: var(--font-mono); font-size: 13px; color: var(--text-muted); }
 .set-label.sm { height: 22px; min-width: 26px; display: inline-flex; align-items: center; justify-content: center; font-size: 11px; padding: 0 4px; }
 .routine-name { font-size: 20px !important; font-weight: 800; }
+
+/* ── Phone status bar ──
+   The app is installed with a see-through status bar (black-translucent, viewport-fit=cover), so the
+   page draws underneath the clock and notch unless the space is reserved here. */
+@media (max-width: 900px) {
+  .dashboard-root::before {
+    content: ""; position: fixed; top: 0; left: 0; right: 0; height: env(safe-area-inset-top);
+    background: var(--surface); z-index: 110;
+  }
+  .dashboard-main { padding-top: calc(20px + env(safe-area-inset-top)); }
+  .sidebar { height: 100dvh; padding-bottom: env(safe-area-inset-bottom); }
+  .sidebar-logo-wrap { padding-top: calc(20px + env(safe-area-inset-top)); }
+}
+@media (max-width: 900px) {
+  .dashboard-main.in-session { padding-top: 0; }
+  .session-head-top { top: 0; margin: 0; padding-top: calc(8px + env(safe-area-inset-top)); }
+}
+
+/* ── Rest timer notifications ── */
+.rest-timer-bar-notify {
+  background: none; border: 1px solid var(--border-bright); border-radius: var(--radius-sm); color: var(--accent-cyan);
+  cursor: pointer; display: inline-flex; align-items: center; gap: 4px; flex-shrink: 0; padding: 6px 8px;
+  font-family: var(--font-mono); font-size: 11px; font-weight: 600;
+}
+.rest-timer-bar-notify:disabled { opacity: 0.5; cursor: default; }

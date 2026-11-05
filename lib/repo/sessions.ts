@@ -399,12 +399,16 @@ export function deleteBlock(userId: number, blockId: number) {
   renumber(b.session_id, ids);
 }
 
+// A route is drawn straight into an SVG, so only plain numbers get stored.
+const isRoutePoint = (pt: unknown) => Array.isArray(pt) ? pt.every(v => typeof v === "number" && isFinite(v))
+  : !!pt && typeof pt === "object" && Object.values(pt).every(v => v == null || (typeof v === "number" && isFinite(v)));
+
 export function updateCardio(userId: number, blockId: number, p: Partial<CardioDTO>) {
   const b = ownBlock(userId, blockId);
   if (b.kind !== "cardio") throw bad("Not a cardio block");
   const cur = toCardio(db.prepare("SELECT * FROM cardio WHERE block_id = ?").get(blockId) as CardioRow | undefined);
   const n = { ...cur, ...p };
-  if (n.route && (!Array.isArray(n.route) || n.route.length > 50_000)) throw bad("Route too large");
+  if (n.route && (!Array.isArray(n.route) || n.route.length > 50_000 || !n.route.every(isRoutePoint))) throw bad("Invalid route");
   db.prepare(`INSERT INTO cardio (block_id, duration_s, distance_m, elevation_m, avg_hr, calories, route, done) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
     ON CONFLICT(block_id) DO UPDATE SET duration_s = excluded.duration_s, distance_m = excluded.distance_m, elevation_m = excluded.elevation_m,
       avg_hr = excluded.avg_hr, calories = excluded.calories, route = excluded.route, done = excluded.done`)
@@ -466,8 +470,8 @@ export function finishSession(user: UserRow, id: number) {
 
 export function updateSessionMeta(userId: number, id: number, p: { name?: string; notes?: string | null; startedAt?: string; endedAt?: string }) {
   const s = ownSession(userId, id);
-  if (p.name !== undefined) db.prepare("UPDATE sessions SET name = ? WHERE id = ?").run(p.name.trim().slice(0, 100) || s.name, id);
-  if (p.notes !== undefined) db.prepare("UPDATE sessions SET notes = ? WHERE id = ?").run(p.notes, id);
+  if (p.name !== undefined) db.prepare("UPDATE sessions SET name = ? WHERE id = ?").run(String(p.name).trim().slice(0, 100) || s.name, id);
+  if (p.notes !== undefined) db.prepare("UPDATE sessions SET notes = ? WHERE id = ?").run(p.notes ? String(p.notes).slice(0, 5000) : null, id);
   if (p.startedAt !== undefined || p.endedAt !== undefined) {
     const st = p.startedAt ?? s.started_at;
     const en = p.endedAt ?? s.ended_at;

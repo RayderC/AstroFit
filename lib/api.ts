@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { cookies } from "next/headers";
+import { cookies, headers } from "next/headers";
 import { getIronSession } from "iron-session";
 import { sessionOptions, type SessionUser } from "./session";
 import { db } from "./db";
@@ -10,6 +10,7 @@ export type UserRow = {
   username: string;
   is_admin: number;
   disabled: number;
+  token_version: number;
   weight_unit: "lb" | "kg";
   distance_unit: "mi" | "km";
   rest_default: number;
@@ -24,19 +25,36 @@ export const bad = (msg: string) => new HttpError(400, msg);
 export const notFound = (msg = "Not found") => new HttpError(404, msg);
 
 export async function getSession() {
-  return getIronSession<{ user?: SessionUser }>(await cookies(), sessionOptions);
+  // Secure on HTTPS (including through a tunnel), but still able to sign in over plain HTTP on a LAN.
+  const env = process.env.SESSION_COOKIE_SECURE;
+  const secure = env != null ? env === "true" : (await headers()).get("x-forwarded-proto") === "https";
+  return getIronSession<{ user?: SessionUser }>(await cookies(), {
+    ...sessionOptions,
+    cookieOptions: { ...sessionOptions.cookieOptions, secure },
+  });
 }
 
-function sameOrigin(req: NextRequest) {
+export function sameOrigin(req: NextRequest) {
+  // Browsers set this themselves and pages can't fake it. It stays right when a proxy or tunnel rewrites Host.
+  if (req.headers.get("sec-fetch-site") === "same-origin") return true;
   const origin = req.headers.get("origin");
   if (!origin) return true;
   const host = req.headers.get("x-forwarded-host") ?? req.headers.get("host");
   try { return new URL(origin).host === host; } catch { return false; }
 }
 
+/**
+ * Behind a Cloudflare Tunnel every request arrives from the tunnel, so use the address Cloudflare reports.
+ * X-Forwarded-For is deliberately not trusted first: a client can set its leftmost entry to dodge rate limits.
+ */
 export function clientIp(req: NextRequest) {
-  return req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "local";
+  const cf = req.headers.get("cf-connecting-ip")?.trim();
+  if (cf) return cf;
+  return req.headers.get("x-forwarded-for")?.split(",").pop()?.trim() || "local";
 }
+
+// Strong imports can be large. Nothing else comes close.
+const MAX_BODY_BYTES = 60 * 1024 * 1024;
 
 type Ctx<P> = { req: NextRequest; user: UserRow; params: P; body: any };
 type RouteOpts = { admin?: boolean };
@@ -52,7 +70,7 @@ export function route<P = Record<string, string>>(
       const session = await getSession();
       if (!session.user) throw new HttpError(401, "Not signed in");
       const user = db.prepare("SELECT * FROM users WHERE id = ?").get(session.user.id) as UserRow | undefined;
-      if (!user || user.disabled) {
+      if (!user || user.disabled || user.token_version !== (session.user.v ?? 0)) {
         session.destroy();
         throw new HttpError(401, "Not signed in");
       }
@@ -61,6 +79,7 @@ export function route<P = Record<string, string>>(
 
       let body: any = undefined;
       if (req.method !== "GET" && req.method !== "DELETE") {
+        if (Number(req.headers.get("content-length")) > MAX_BODY_BYTES) throw new HttpError(413, "That's too large");
         const ct = req.headers.get("content-type") ?? "";
         if (ct.includes("application/json")) body = await req.json().catch(() => { throw bad("Invalid JSON"); });
         else body = await req.text();

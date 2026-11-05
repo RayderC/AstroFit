@@ -24,10 +24,11 @@ export const POST = route(({ user, body }) => {
     seen.add(d.weekday);
   }
   const name = String(b.name ?? "My program").slice(0, 100);
+  if (JSON.stringify(b.config ?? {}).length > 10_000) throw bad("Program settings are too large");
   return db.transaction(() => {
     db.prepare("UPDATE programs SET active = 0 WHERE user_id = ?").run(user.id);
     const pid = Number(db.prepare("INSERT INTO programs (user_id, name, goal, config, active) VALUES (?, ?, ?, ?, 1)")
-      .run(user.id, name, String(b.goal ?? "general"), JSON.stringify(b.config ?? {})).lastInsertRowid);
+      .run(user.id, name, String(b.goal ?? "general").slice(0, 40), JSON.stringify(b.config ?? {})).lastInsertRowid);
     for (const d of days) {
       const rid = createRoutine(user.id, `${name.split(" · ")[0]} — ${d.name}`, null, d.blocks, pid);
       db.prepare("INSERT INTO program_days (program_id, weekday, routine_id) VALUES (?, ?, ?)").run(pid, d.weekday, rid);

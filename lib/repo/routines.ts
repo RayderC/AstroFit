@@ -66,7 +66,7 @@ export function writeBlocks(userId: number, routineId: number, blocks: RoutineBl
 export function createRoutine(userId: number, name: string, notes: string | null, blocks: RoutineBlockDTO[], programId: number | null = null) {
   return db.transaction(() => {
     const info = db.prepare("INSERT INTO routines (user_id, program_id, name, notes) VALUES (?, ?, ?, ?)")
-      .run(userId, programId, name.trim().slice(0, 100) || "Routine", notes);
+      .run(userId, programId, String(name).trim().slice(0, 100) || "Routine", notes ? String(notes).slice(0, 5000) : null);
     const id = Number(info.lastInsertRowid);
     writeBlocks(userId, id, blocks);
     return id;
@@ -77,8 +77,8 @@ export function updateRoutine(userId: number, id: number, p: { name?: string; no
   const r = db.prepare("SELECT id FROM routines WHERE id = ? AND user_id = ?").get(id, userId);
   if (!r) throw notFound("Routine not found");
   db.transaction(() => {
-    if (p.name !== undefined) db.prepare("UPDATE routines SET name = ? WHERE id = ?").run(p.name.trim().slice(0, 100) || "Routine", id);
-    if (p.notes !== undefined) db.prepare("UPDATE routines SET notes = ? WHERE id = ?").run(p.notes, id);
+    if (p.name !== undefined) db.prepare("UPDATE routines SET name = ? WHERE id = ?").run(String(p.name).trim().slice(0, 100) || "Routine", id);
+    if (p.notes !== undefined) db.prepare("UPDATE routines SET notes = ? WHERE id = ?").run(p.notes ? String(p.notes).slice(0, 5000) : null, id);
     if (p.blocks) writeBlocks(userId, id, p.blocks);
     db.prepare("UPDATE routines SET updated_at = ? WHERE id = ?").run(nowIso(), id);
   })();

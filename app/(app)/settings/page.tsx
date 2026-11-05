@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useState } from "react";
 import Icon from "@/app/components/Icon";
+import PushCard from "@/app/components/PushCard";
 import { RestModal } from "@/app/components/session/LiftCard";
 import { useMe } from "@/app/components/MeContext";
 import { api } from "@/lib/client";
@@ -45,6 +46,8 @@ export default function SettingsPage() {
           <button className="btn-secondary btn-sm" onClick={() => setRest(true)}>{me.restDefault ? fmtDuration(me.restDefault) : "Off"}</button>
         </div>
       </div>
+
+      <PushCard />
 
       <div className="card section">
         <div className="card-title" style={{ marginBottom: 6 }}>Your data</div>

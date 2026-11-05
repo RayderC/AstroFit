@@ -39,6 +39,14 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   useEffect(() => { setOpen(false); reloadActive(); }, [path, reloadActive]);
 
   async function logout() {
+    // Stop this device getting rest notifications after signing out.
+    try {
+      const sub = await (await navigator.serviceWorker?.getRegistration())?.pushManager?.getSubscription();
+      if (sub) {
+        await api("/api/push/unsubscribe", { body: { endpoint: sub.endpoint } });
+        await sub.unsubscribe();
+      }
+    } catch { /* Signing out matters more than this cleanup. */ }
     await api("/api/logout", { method: "POST" });
     // Full navigation so the router drops its cached signed-in pages.
     window.location.replace("/login");
@@ -58,12 +66,6 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   return (
     <MeContext.Provider value={{ me, reloadMe: reload }}>
       <div className="dashboard-root">
-        <header className="dash-mobile-bar">
-          <button className="dash-hamburger" onClick={() => setOpen(true)} aria-label="Menu">
-            <span /><span /><span />
-          </button>
-          <span className="dash-mobile-title">AstroFit</span>
-        </header>
 
         {open && <div className="dash-backdrop" onClick={() => setOpen(false)} />}
 
@@ -90,7 +92,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           </div>
         </aside>
 
-        <main className={`dashboard-main ${inSession ? "" : "has-tabbar"}`}>
+        <main className={`dashboard-main ${inSession ? "in-session" : "has-tabbar"}`}>
           {active?.session && !inSession && (
             <Link href={`/session/${active.session.id}`} className="active-banner">
               <span className="active-dot" />

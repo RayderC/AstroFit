@@ -1,6 +1,8 @@
 import type { NextConfig } from "next";
 import path from "path";
 
+const isDev = process.env.NODE_ENV !== "production";
+
 const securityHeaders = [
   { key: "X-Content-Type-Options", value: "nosniff" },
   { key: "X-Frame-Options", value: "SAMEORIGIN" },
@@ -13,10 +15,10 @@ const securityHeaders = [
     key: "Content-Security-Policy",
     value: [
       "default-src 'self'",
-      "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
+      `script-src 'self' 'unsafe-inline'${isDev ? " 'unsafe-eval'" : ""}`,
       "style-src 'self' 'unsafe-inline'",
       "img-src 'self' data: blob:",
-      "connect-src 'self' wss: ws:",
+      `connect-src 'self'${isDev ? " wss: ws:" : ""}`,
       "font-src 'self'",
       "frame-ancestors 'none'",
       "base-uri 'self'",
@@ -27,7 +29,8 @@ const securityHeaders = [
 
 const nextConfig: NextConfig = {
   output: "standalone",
-  serverExternalPackages: ["better-sqlite3"],
+  poweredByHeader: false,
+  serverExternalPackages: ["better-sqlite3", "web-push"],
   turbopack: { root: path.resolve(__dirname) },
   async headers() {
     return [{ source: "/(.*)", headers: securityHeaders }];

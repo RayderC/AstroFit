@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
-import bcrypt from "bcryptjs";
 import { db } from "@/lib/db";
-import { getSession } from "@/lib/api";
+import { clientIp, getSession, HttpError, sameOrigin } from "@/lib/api";
+import { checkRateLimit } from "@/lib/rateLimit";
+import { createUser } from "@/lib/repo/users";
 
 const countUsers = () => (db.prepare("SELECT COUNT(*) c FROM users").get() as { c: number }).c;
 
@@ -10,17 +11,24 @@ export async function GET() {
 }
 
 export async function POST(req: NextRequest) {
-  if (countUsers() > 0) return NextResponse.json({ message: "Setup already complete" }, { status: 403 });
+  if (!sameOrigin(req)) return NextResponse.json({ message: "Bad origin" }, { status: 403 });
+  if (!checkRateLimit(`setup:${clientIp(req)}`, 10, 60_000)) return NextResponse.json({ message: "Slow down" }, { status: 429 });
   const { username, password, weightUnit, distanceUnit } = await req.json().catch(() => ({}));
-  const name = String(username ?? "").trim().toLowerCase();
-  if (name.length < 2 || !/^[a-z0-9_.-]+$/.test(name)) return NextResponse.json({ message: "Username must be 2+ letters/numbers" }, { status: 400 });
-  if (String(password ?? "").length < 8) return NextResponse.json({ message: "Password must be at least 8 characters" }, { status: 400 });
-  const wu = weightUnit === "kg" ? "kg" : "lb";
-  const du = distanceUnit === "km" ? "km" : "mi";
-  const info = db.prepare("INSERT INTO users (username, password, is_admin, weight_unit, distance_unit) VALUES (?, ?, 1, ?, ?)")
-    .run(name, bcrypt.hashSync(password, 12), wu, du);
-  const session = await getSession();
-  session.user = { id: Number(info.lastInsertRowid), username: name };
-  await session.save();
-  return NextResponse.json({ ok: true });
+  try {
+    // Checking and creating in one transaction means two simultaneous requests can't both become admin.
+    const id = db.transaction(() => {
+      if (countUsers() > 0) throw new HttpError(403, "Setup already complete");
+      const newId = createUser(username, password, true);
+      db.prepare("UPDATE users SET weight_unit = ?, distance_unit = ? WHERE id = ?")
+        .run(weightUnit === "kg" ? "kg" : "lb", distanceUnit === "km" ? "km" : "mi", newId);
+      return newId;
+    }).immediate();
+    const session = await getSession();
+    session.user = { id, username: String(username).trim().toLowerCase(), v: 0 };
+    await session.save();
+    return NextResponse.json({ ok: true });
+  } catch (e) {
+    if (e instanceof HttpError) return NextResponse.json({ message: e.message }, { status: e.status });
+    throw e;
+  }
 }

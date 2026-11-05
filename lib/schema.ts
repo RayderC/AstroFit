@@ -176,6 +176,25 @@ CREATE TABLE IF NOT EXISTS imports (
 `;
 
 /** Insert any built-in exercises / activity types that are missing. Safe to run every boot. */
+export const SCHEMA_V2 = `
+ALTER TABLE users ADD COLUMN token_version INTEGER NOT NULL DEFAULT 0;
+
+CREATE TABLE IF NOT EXISTS settings (
+  key TEXT PRIMARY KEY,
+  value TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS push_subscriptions (
+  id INTEGER PRIMARY KEY,
+  user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  endpoint TEXT NOT NULL UNIQUE,
+  p256dh TEXT NOT NULL,
+  auth TEXT NOT NULL,
+  created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now'))
+);
+CREATE INDEX IF NOT EXISTS push_subscriptions_user ON push_subscriptions(user_id);
+`;
+
 export function seedLibrary(db: Database.Database) {
   const ins = db.prepare(`INSERT OR IGNORE INTO exercises
     (name, equipment, primary_muscles, secondary_muscles, pattern, log_type, rank, is_builtin)

@@ -1,12 +1,18 @@
 import bcrypt from "bcryptjs";
-import { route, bad, HttpError } from "@/lib/api";
+import { getSession, route, HttpError } from "@/lib/api";
 import { db } from "@/lib/db";
+import { checkRateLimit } from "@/lib/rateLimit";
+import { setPassword } from "@/lib/repo/users";
 
-export const POST = route(({ user, body }) => {
+export const POST = route(async ({ user, body }) => {
+  if (!checkRateLimit(`pwchange:${user.id}`, 10, 60_000)) throw new HttpError(429, "Too many attempts. Try again in a minute.");
   const { current, next } = body ?? {};
   const row = db.prepare("SELECT password FROM users WHERE id = ?").get(user.id) as { password: string };
-  if (!bcrypt.compareSync(String(current ?? ""), row.password)) throw new HttpError(403, "Current password is wrong");
-  if (String(next ?? "").length < 8) throw bad("New password must be at least 8 characters");
-  db.prepare("UPDATE users SET password = ? WHERE id = ?").run(bcrypt.hashSync(next, 12), user.id);
+  if (!(await bcrypt.compare(String(current ?? ""), row.password))) throw new HttpError(403, "Current password is wrong");
+  setPassword(user.id, next);
+  // Other devices get signed out. Keep this one signed in with the new version.
+  const session = await getSession();
+  session.user = { id: user.id, username: user.username, v: user.token_version + 1 };
+  await session.save();
   return { ok: true };
 });

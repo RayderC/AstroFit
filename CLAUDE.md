@@ -24,7 +24,8 @@ There is no test suite. Set `DATABASE_PATH` to a scratch file when running local
 
 Next.js 16 App Router, one Docker container, SQLite. All UI is `"use client"` and fetches from `app/api/**/route.ts`.
 
-- **Auth**: `proxy.ts` redirects signed-out page requests to `/login` server-side. API routes are excluded from it and check auth through `route()`.
+- **Auth**: `proxy.ts` redirects signed-out page requests to `/login` server-side. API routes are excluded from it and check auth through `route()`. Sessions carry `token_version`, and bumping it (`setPassword`) signs out that user's other sessions.
+- **Client IP**: use `clientIp()`. It prefers `CF-Connecting-IP`. Don't trust the leftmost `X-Forwarded-For`, which clients control.
 - **API**: every handler except login and setup uses `route()` from `lib/api.ts`, which handles auth, the CSRF origin check, JSON parsing, errors and `{ admin: true }`. Throw `bad()`, `notFound()` or `HttpError` to return an error. Scope every query to `user.id`; the `own*` helpers in `lib/repo/sessions.ts` do this for sessions, blocks and sets.
 - **Database**: `lib/db.ts` opens the DB on first use, never on import, because `next build` imports every route in parallel workers. Don't query it at module level. Schema changes go in as a new entry in its `MIGRATIONS` array (versioned with `PRAGMA user_version`), never by editing `SCHEMA_V1` in `lib/schema.ts`, which existing databases won't re-run. `seedLibrary` adds missing built-in exercises on every boot.
 - **Client vs server code**: anything importing `lib/db.ts` is server-only. Pages can't import `lib/repo/*`, which is why `app/(app)/body/page.tsx` repeats the measurement list from `lib/repo/body.ts`. Shared shapes live in `lib/types.ts`, and `lib/exerciseSeed.ts` and `lib/units.ts` are safe on both sides.
@@ -53,15 +54,20 @@ Cyberpunk dark theme in `app/globals.css`, consistent with Amethyst/ComicOrbit/S
 
 Body text uses system fonts. `var(--font-mono)` (JetBrains Mono) is only for labels, badges, stat values and form labels. Auth and modal cards use `overflow: hidden` with brackets 10px inside (cyan top-left, magenta bottom-right). Sidebar active state uses `box-shadow: inset 2px 0 0 var(--accent-cyan)`, not `border-left`. Page titles use a chromatic `text-shadow`. Branding is text-only, with no logo image.
 
-Mobile breakpoints: 900px (sidebar becomes a drawer, bottom tab bar appears) and 640px (inputs get `font-size: 16px` to prevent iOS zoom, modals become bottom sheets). Use `env(safe-area-inset-bottom)` for notch padding.
+Mobile breakpoints: 900px (sidebar becomes a drawer, bottom tab bar appears) and 640px (inputs get `font-size: 16px` to prevent iOS zoom, modals become bottom sheets). There is no top bar on phones: the tab bar's More opens the menu, and the workout page has its own back button. The app draws under the status bar, so anything at the top needs `env(safe-area-inset-top)`, and anything at the bottom needs `env(safe-area-inset-bottom)`.
 
 ## PWA
 
-`public/sw.js` is network-first and never caches `/api`. It's only registered in production builds, so test it with `npm run build`. Bump `CACHE` when changing what it precaches. The icons in `public/icons/` are committed PNGs.
+`public/sw.js` is network-first and never caches `/api`. It's only registered in production builds, so test it with `npm run build`. Bump `CACHE` when changing what it precaches. The icons in `public/icons/` are committed PNGs from `scripts/make-icons.mjs`.
+
+## Rest timer notifications
+
+A phone suspends the page while the screen is off, so `lib/push.ts` keeps a copy of the rest timer on the server and sends a Web Push when it ends. `useRestTimer` keeps that copy in sync and cancels it just before the end if the page is on screen, since the beep covers that case. Timers are in memory, so a restart mid-rest loses that one notification. `lib/push.ts` only stores endpoints on known browser push services, because the server sends requests to whatever is stored. It needs HTTPS, and on iPhone the app must be added to the Home Screen first.
 
 ## Docker
 
 - `.dockerignore` must exclude `node_modules`, or Windows binaries overwrite the Linux SQLite build.
 - `.gitattributes` forces LF on `*.sh` and `Dockerfile`. A CRLF `docker-entrypoint.sh` won't run in the container.
 - Use named volumes (`-v astrofit_data:/config`). WAL locking breaks on Windows bind mounts.
+- `docker-entrypoint.sh` starts as root only to chown `/config`, then re-runs itself as the `node` user with `setpriv`. Don't add a `USER` line to the Dockerfile, or bind mounts fail with "Permission denied".
 - `docker-entrypoint.sh` generates `SESSION_SECRET` into `/config/.session_secret` when it isn't set.

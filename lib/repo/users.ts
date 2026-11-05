@@ -16,12 +16,18 @@ export function listUsers(): AdminUser[] {
 
 function checkPassword(p: unknown): string {
   if (typeof p !== "string" || p.length < 8) throw bad("Password must be at least 8 characters");
+  if (p.length > 72) throw bad("Password must be 72 characters or fewer"); // bcrypt ignores anything past 72 bytes
   return p;
+}
+
+export function setPassword(id: number, password: unknown) {
+  // Bumping the version signs out every existing session for this user.
+  db.prepare("UPDATE users SET password = ?, token_version = token_version + 1 WHERE id = ?").run(bcrypt.hashSync(checkPassword(password), 12), id);
 }
 
 export function createUser(username: unknown, password: unknown, isAdmin: unknown) {
   const name = String(username ?? "").trim().toLowerCase();
-  if (name.length < 2 || !/^[a-z0-9_.-]+$/.test(name)) throw bad("Username must be 2+ letters or numbers");
+  if (name.length < 2 || name.length > 40 || !/^[a-z0-9_.-]+$/.test(name)) throw bad("Username must be 2-40 letters or numbers");
   const pw = checkPassword(password);
   if (db.prepare("SELECT 1 FROM users WHERE username = ?").get(name)) throw bad("That username is taken");
   const info = db.prepare("INSERT INTO users (username, password, is_admin) VALUES (?, ?, ?)").run(name, bcrypt.hashSync(pw, 12), isAdmin ? 1 : 0);
@@ -43,7 +49,7 @@ function assertOtherAdmin(id: number) {
 export function updateUser(actorId: number, id: number, p: { password?: unknown; disabled?: unknown; isAdmin?: unknown }) {
   const u = target(id);
   db.transaction(() => {
-    if (p.password !== undefined) db.prepare("UPDATE users SET password = ? WHERE id = ?").run(bcrypt.hashSync(checkPassword(p.password), 12), id);
+    if (p.password !== undefined) setPassword(id, p.password);
     if (p.disabled !== undefined) {
       if (p.disabled) {
         if (id === actorId) throw new HttpError(400, "You can't disable your own account");

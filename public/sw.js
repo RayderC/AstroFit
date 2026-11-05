@@ -1,6 +1,6 @@
 // Network first: always try for fresh pages, and fall back to the last copy when offline.
 // API calls are never cached, so workout data can't go stale or outlive a sign-out.
-const CACHE = "astrofit-v2";
+const CACHE = "astrofit-v3";
 const PRECACHE = ["/offline.html", "/icons/icon-192.png", "/icons/icon-512.png"];
 
 self.addEventListener("install", event => {
@@ -38,5 +38,34 @@ self.addEventListener("fetch", event => {
         if (req.mode === "navigate") return (await caches.match("/offline.html")) ?? Response.error();
         return Response.error();
       }),
+  );
+});
+
+self.addEventListener("push", event => {
+  let data = {};
+  try { data = event.data ? event.data.json() : {}; } catch { /* Fall back to the default text below. */ }
+  event.waitUntil(self.registration.showNotification(data.title || "AstroFit", {
+    body: data.body || "",
+    icon: "/icons/icon-192.png",
+    badge: "/icons/icon-192.png",
+    tag: data.tag,
+    renotify: !!data.tag, // Replaces the last one, but still buzzes.
+    vibrate: [200, 100, 200],
+    data: { url: data.url || "/" },
+  }));
+});
+
+self.addEventListener("notificationclick", event => {
+  event.notification.close();
+  // Only ever open a page on this site, whatever the payload says.
+  const url = new URL(event.notification.data?.url || "/", self.location.origin);
+  const target = url.origin === self.location.origin ? url.href : self.location.origin;
+  event.waitUntil(
+    self.clients.matchAll({ type: "window", includeUncontrolled: true }).then(list => {
+      // Already on the workout: just bring it forward, because navigating would reload the page.
+      for (const c of list) if (c.url === target && "focus" in c) return c.focus();
+      for (const c of list) if ("focus" in c) { c.navigate(target); return c.focus(); }
+      return self.clients.openWindow(target);
+    }),
   );
 });
