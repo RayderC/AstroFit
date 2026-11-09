@@ -40,10 +40,12 @@ export default function PushCard() {
         </div>
         {(state === "off" || state === "on") && (
           <div className="flex gap-2">
-            {state === "on" && (
-              <button className="btn-secondary btn-sm" disabled={busy}
-                onClick={() => run(() => api("/api/push/test", { method: "POST" }), undefined, "Sent. It should arrive in a few seconds.")}>Test</button>
-            )}
+            <button className="btn-secondary btn-sm" disabled={busy}
+              onClick={() => run(async () => {
+                // A test needs this device signed up first, so turning on is part of it.
+                if (state === "off") { await enablePush(); setState("on"); }
+                await api("/api/push/test", { method: "POST" });
+              }, undefined, "Test sent. It should show up in a few seconds, even if you switch apps.")}>Send test</button>
             <button className={state === "on" ? "btn-secondary btn-sm" : "btn-primary btn-sm"} disabled={busy}
               onClick={() => state === "on" ? run(disablePush, "off") : run(enablePush, "on", "Notifications are on for this device.")}>
               {state === "on" ? "Turn off" : "Turn on"}

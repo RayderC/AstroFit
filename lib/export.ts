@@ -1,6 +1,7 @@
 import { db } from "./db";
 import { exerciseDisplayName } from "./exerciseSeed";
 import { listBody } from "./repo/body";
+import { exportFood } from "./repo/food";
 import { listRoutines } from "./repo/routines";
 import { durationOf } from "./repo/sessions";
 import type { UserRow } from "./api";
@@ -86,6 +87,7 @@ export function exportJson(user: UserRow) {
       }),
     })),
     body: listBody(user.id),
+    food: exportFood(user.id),
     imports: db.prepare("SELECT source, file_hash, sessions, skipped, imported_at FROM imports WHERE user_id = ?").all(user.id),
   };
 }

@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Icon from "@/app/components/Icon";
 import Modal, { Sheet } from "@/app/components/Modal";
 import ExercisePicker from "@/app/components/ExercisePicker";
@@ -38,6 +38,9 @@ export default function LiftCard({ sessionId, block, finished, onSession, onSets
   const [modal, setModal] = useState<null | "range" | "rest" | "note" | "swap">(null);
   const [alts, setAlts] = useState<ExerciseDTO[] | null>(null);
   const [err, setErr] = useState("");
+  // Swipe a set left to reveal Delete, like Strong. Only one row is open at a time.
+  const [swipe, setSwipe] = useState<{ id: number; dx: number } | null>(null);
+  const touch = useRef<{ id: number; x: number; y: number; base: number; horizontal: boolean | null } | null>(null);
 
   // Keep drafts in sync with server sets (new/removed sets), without clobbering what's being typed.
   useEffect(() => {
@@ -117,8 +120,42 @@ export default function LiftCard({ sessionId, block, finished, onSession, onSets
   }
 
   async function removeSet(s: SetDTO) {
-    await api(`/api/sets/${s.id}`, { method: "DELETE" });
-    onSetsChanged(block.id, block.sets.filter(x => x.id !== s.id));
+    setErr("");
+    setSwipe(null);
+    try {
+      await api(`/api/sets/${s.id}`, { method: "DELETE" });
+      onSetsChanged(block.id, block.sets.filter(x => x.id !== s.id));
+    } catch (e) { setErr((e as Error).message); }
+  }
+
+  function removeLastSet() {
+    const last = block.sets[block.sets.length - 1];
+    if (!last) return;
+    if (last.done && !confirm("The last set is already logged. Remove it anyway?")) return;
+    removeSet(last);
+  }
+
+  const SWIPE_OPEN = -84;
+  function onTouchStart(s: SetDTO, e: React.TouchEvent) {
+    const t = e.touches[0];
+    touch.current = { id: s.id, x: t.clientX, y: t.clientY, base: swipe?.id === s.id ? swipe.dx : 0, horizontal: null };
+    if (swipe && swipe.id !== s.id) setSwipe(null);
+  }
+  function onTouchMove(e: React.TouchEvent) {
+    const st = touch.current;
+    if (!st) return;
+    const t = e.touches[0];
+    const dx = t.clientX - st.x, dy = t.clientY - st.y;
+    // Decide once per gesture, so scrolling the page never drags a row sideways.
+    if (st.horizontal === null && Math.abs(dx) + Math.abs(dy) > 8) st.horizontal = Math.abs(dx) > Math.abs(dy) * 1.2;
+    if (!st.horizontal) return;
+    setSwipe({ id: st.id, dx: Math.max(-120, Math.min(0, st.base + dx)) });
+  }
+  function onTouchEnd() {
+    const st = touch.current;
+    touch.current = null;
+    if (!st?.horizontal) return;
+    setSwipe(w => (w && w.id === st.id && w.dx < SWIPE_OPEN / 2 ? { id: st.id, dx: SWIPE_OPEN } : null));
   }
 
   async function openSwap() {
@@ -172,8 +209,12 @@ export default function LiftCard({ sessionId, block, finished, onSession, onSets
           const prevText = !p ? "—" : lt === "time" ? fmtDuration(p.durationS) : lt === "reps" ? `${p.weightKg ? `+${fmtWeight(p.weightKg, unit)} × ` : ""}${p.reps ?? "–"}` : `${fmtWeight(p.weightKg, unit) || 0} × ${p.reps ?? "–"}`;
           const ph = (k: "w" | "r" | "d") => !p ? "" : k === "w" ? fmtWeight(p.weightKg, unit) : k === "r" ? String(p.reps ?? "") : fmtDuration(p.durationS);
           const setD = (k: keyof Draft, v: string) => setDrafts(x => ({ ...x, [s.id]: { ...d, [k]: v } }));
+          const dx = swipe?.id === s.id ? swipe.dx : 0;
           return (
-            <div key={s.id} className={`set-row ${s.done ? "done" : ""} kind-${s.kind}`}>
+            <div key={s.id} className="set-swipe">
+            {dx < 0 && <button className="set-swipe-del" onClick={() => removeSet(s)} aria-label={`Delete set ${labels[i]}`}><Icon name="trash" size={16} /> Delete</button>}
+            <div className={`set-row ${s.done ? "done" : ""} kind-${s.kind}`} style={dx ? { transform: `translateX(${dx}px)` } : undefined}
+              onTouchStart={e => onTouchStart(s, e)} onTouchMove={onTouchMove} onTouchEnd={onTouchEnd} onTouchCancel={onTouchEnd}>
               <button className="set-label" onClick={() => setSetSheet(s)}>{labels[i]}</button>
               <span className="set-prev">{prevText}</span>
               {lt !== "time" && (
@@ -192,10 +233,15 @@ export default function LiftCard({ sessionId, block, finished, onSession, onSets
                 <Icon name="check" size={16} />
               </button>
             </div>
+            </div>
           );
         })}
       </div>
-      <button className="add-set-btn" onClick={addSet}>+ Add set</button>
+      <div className="set-btns">
+        <button className="add-set-btn" onClick={addSet}>+ Add set</button>
+        {block.sets.length > 0 && <button className="add-set-btn remove-set-btn" onClick={removeLastSet} aria-label="Remove the last set">− Remove set</button>}
+      </div>
+      {block.sets.length > 1 && <p className="set-hint">Swipe a set left to delete it.</p>}
 
       {menu && (
         <Sheet title={block.exercise.displayName} onClose={() => setMenu(false)} actions={[

@@ -12,7 +12,7 @@ import CardioCard from "@/app/components/session/CardioCard";
 import ActivityPicker from "@/app/components/ActivityPicker";
 import { useMe } from "@/app/components/MeContext";
 import { api, useApi } from "@/lib/client";
-import { fmtDistance, fmtDuration, fmtWeight, kgTo } from "@/lib/units";
+import { fmtDistance, fmtDuration, fmtPace, fmtWeight, kgTo, M_PER_MI, type DistanceUnit, type WeightUnit } from "@/lib/units";
 import type { BlockDTO, CardioDTO, LiftBlockDTO, RecordHit, SessionDTO, SessionSummary, SetDTO } from "@/lib/types";
 
 function elapsedOf(s: SessionDTO) {
@@ -228,6 +228,14 @@ function MetaModal({ s, onClose, onSave }: { s: SessionDTO; onClose: () => void;
   );
 }
 
+function recordValue(r: RecordHit, wu: WeightUnit, du: DistanceUnit) {
+  const v = Number(r.value);
+  if (r.kind === "distance") return `${fmtDistance(v, du)} ${du}`;
+  if (r.kind === "duration") return fmtDuration(v);
+  if (r.kind === "pace") return fmtPace(v * (du === "mi" ? M_PER_MI : 1000), du);
+  return `${fmtWeight(v, wu)} ${wu}`;
+}
+
 function SummaryModal({ data, onClose }: { data: { summary: SessionSummary; records: RecordHit[] }; onClose: () => void }) {
   const { me } = useMe();
   const s = data.summary;
@@ -246,7 +254,7 @@ function SummaryModal({ data, onClose }: { data: { summary: SessionSummary; reco
           <div className="section-label" style={{ marginTop: 18 }}>New records</div>
           <ul className="record-list">
             {data.records.map((r, i) => (
-              <li key={i}><span>{r.exercise}</span><span className="text-muted">{r.label}</span><b>{fmtWeight(Number(r.value), me.weightUnit)} {me.weightUnit}</b></li>
+              <li key={i}><span>{r.exercise}</span><span className="text-muted">{r.label}</span><b>{recordValue(r, me.weightUnit, me.distanceUnit)}</b></li>
             ))}
           </ul>
         </>

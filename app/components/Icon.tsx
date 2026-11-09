@@ -31,6 +31,9 @@ const PATHS: Record<string, React.ReactNode> = {
   edit: <><path d="M4 20h4L19 9l-4-4L4 16z" /></>,
   menu: <><path d="M3 6h18M3 12h18M3 18h18" /></>,
   bell: <><path d="M6 8a6 6 0 1 1 12 0c0 7 3 9 3 9H3s3-2 3-9M10.3 21a2 2 0 0 0 3.4 0" /></>,
+  food: <><path d="M7 2v9M4 2v5a3 3 0 0 0 6 0V2M7 11v11M18 22V2c-2.5 0-4 2.5-4 6v5h4" /></>,
+  target: <><circle cx="12" cy="12" r="9" /><circle cx="12" cy="12" r="5" /><circle cx="12" cy="12" r="1" /></>,
+  camera: <><path d="M4 8h3l2-3h6l2 3h3a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9a1 1 0 0 1 1-1z" /><circle cx="12" cy="13" r="3.5" /></>,
 };
 
 export default function Icon({ name, size = 18, className }: { name: string; size?: number; className?: string }) {

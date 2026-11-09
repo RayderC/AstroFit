@@ -15,7 +15,7 @@ type Activity = {
   longestDistance: { distanceM: number; durationS: number | null; date: string } | null;
   longestTime: { durationS: number; distanceM: number | null; date: string } | null;
   fastest: { distanceM: number; durationS: number; date: string } | null;
-  efforts: { label: string; meters: number; timeS: number; date: string }[];
+  efforts: { label: string; meters: number; timeS: number; date: string; fromGps: boolean }[];
 };
 type Data = {
   weeks: number;
@@ -141,8 +141,16 @@ function Cardio({ d }: { d: Data }) {
     return <div className="empty-state"><div className="empty-state-title">No cardio yet</div><div className="empty-state-desc">Log a run, ride or row and your trends show up here.</div></div>;
   }
 
+  const total = d.cardio.weekly.reduce((t, w) => ({ s: t.s + w.durationS, m: t.m + w.distanceM, n: t.n + w.sessions }), { s: 0, m: 0, n: 0 });
+  const weeksShown = Math.max(1, d.cardio.weekly.length);
+
   return (
     <>
+      <div className="stats-grid section">
+        <Best label="Sessions" value={String(total.n)} sub={`${Math.round((total.n / weeksShown) * 10) / 10} a week`} />
+        <Best label="Time" value={fmtDuration(total.s, { long: true })} sub={`${fmtDuration(total.s / weeksShown, { long: true })} a week`} />
+        <Best label="Distance" value={`${fmtDistance(total.m, du)} ${du}`} sub={`${fmtDistance(total.m / weeksShown, du)} ${du} a week`} />
+      </div>
       <div className="card section">
         <div className="card-header">
           <span className="card-title">Weekly {metric}</span>
@@ -175,9 +183,9 @@ function Cardio({ d }: { d: Data }) {
             {a.longestDistance && <Best label="Longest distance" value={`${fmtDistance(a.longestDistance.distanceM, du)} ${du}`} sub={fmtDate(a.longestDistance.date)} />}
             {a.longestTime && <Best label="Longest time" value={fmtDuration(a.longestTime.durationS, { long: true })} sub={fmtDate(a.longestTime.date)} />}
             {a.fastest && <Best label="Fastest pace" value={fmtPace(paceSecPer(a.fastest.distanceM, a.fastest.durationS, du), du)} sub={`${fmtDistance(a.fastest.distanceM, du)} ${du} · ${fmtDate(a.fastest.date)}`} />}
-            {a.efforts.map(e => <Best key={e.label} label={e.label} value={fmtDuration(e.timeS)} sub={fmtDate(e.date)} />)}
+            {a.efforts.map(e => <Best key={e.label} label={e.label} value={fmtDuration(e.timeS)} sub={`${fmtDate(e.date)}${e.fromGps ? "" : " · est."}`} />)}
           </div>
-          {a.efforts.length > 0 && <p className="form-hint" style={{ marginTop: 10 }}>Distance times are estimated from the average pace of a session at least that long.</p>}
+          {a.efforts.length > 0 && <p className="form-hint" style={{ marginTop: 10 }}>Times come from the fastest stretch of a GPS track. Ones marked est. had no track, so they use that session&apos;s average pace.</p>}
         </div>
       )}
     </>

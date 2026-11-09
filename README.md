@@ -10,12 +10,13 @@ Self-hosted workout tracker where lifting and cardio are equal parts of the app.
 
 ## Features
 
-- **Lift logging**: a Previous column, warm-up/drop/failure set tags, a per-exercise rest timer, supersets and sticky exercise notes.
-- **Cardio logging**: time, distance, heart rate, elevation and calories, or live GPS tracking with splits and a route map.
+- **Lift logging**: a Previous column, warm-up/drop/failure set tags, a per-exercise rest timer with a phone notification when rest ends, supersets and sticky exercise notes. Swipe a set left to delete it.
+- **Cardio logging**: time, distance, heart rate, elevation and calories, or live GPS tracking with current pace, splits, spoken updates each mile or km, auto-pause and a route map. A track survives the page reloading, and rides show speed instead of pace.
 - **Exercise detail**: History, Charts and Records tabs for every exercise, from a library of about 120 plus your own.
 - **Progression coach**: set a rep range. When every working set reaches the top, your next session suggests more weight and pre-fills it (+5 lb upper / +10 lb lower, or +2.5 / +5 kg, adjustable per exercise).
-- **Builder**: generate one workout from focus, time, equipment and goal, or a full weekly program with cardio days. Edit anything before you use it.
-- **Progress**: weekly volume, sets per muscle, best lifts, weekly distance and time, pace trends, best efforts and a muscle heatmap.
+- **Builder**: generate one workout from focus, time, equipment and goal, or a full weekly program. Pick the split (full body, push/pull/legs, upper/lower, body part and more) and your training days, see weekly sets per muscle, and rebuild any single day. Edit anything before you use it.
+- **Progress**: weekly volume, sets per muscle, best lifts, weekly distance and time, pace trends, a muscle heatmap, and best efforts (1K to marathon) taken from the fastest stretch of your GPS tracks. Finishing a workout shows any new lifting or cardio records.
+- **Food**: an optional calorie and macro diary on its own tab. Scan a barcode or search packaged foods from [Open Food Facts](https://world.openfoodfacts.org), add your own foods, and set daily goals.
 - **Body**: weight, body fat and tape measurements, each with its own chart.
 - **Your data**: import a Strong CSV export, and export everything as CSV or JSON.
 - **Multi-user**: separate data per person, with an admin page for accounts.
@@ -36,7 +37,7 @@ docker run -d \
 
 Open **http://localhost:7090** and create the admin account.
 
-GPS tracking and installing the PWA need HTTPS when you aren't on localhost, because browsers restrict both on plain HTTP. Put AstroFit behind a reverse proxy and set `SESSION_COOKIE_SECURE=true`.
+GPS tracking, live barcode scanning, notifications and installing the PWA need HTTPS when you aren't on localhost, because browsers restrict them on plain HTTP. Over plain HTTP you can still scan a barcode by taking a photo of it. Food lookups need the server to reach openfoodfacts.org. Put AstroFit behind a reverse proxy and set `SESSION_COOKIE_SECURE=true`.
 
 ## Docker Compose
 

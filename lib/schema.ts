@@ -175,6 +175,52 @@ CREATE TABLE IF NOT EXISTS imports (
 );
 `;
 
+/** Food diary: saved foods (yours, or looked up by barcode) and what you logged each day. */
+export const SCHEMA_V3 = `
+ALTER TABLE users ADD COLUMN kcal_goal INTEGER;
+ALTER TABLE users ADD COLUMN protein_goal_g INTEGER;
+ALTER TABLE users ADD COLUMN carbs_goal_g INTEGER;
+ALTER TABLE users ADD COLUMN fat_goal_g INTEGER;
+
+CREATE TABLE IF NOT EXISTS foods (
+  id            INTEGER PRIMARY KEY,
+  user_id       INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  name          TEXT    NOT NULL,
+  brand         TEXT,
+  barcode       TEXT,
+  source        TEXT    NOT NULL DEFAULT 'custom',
+  serving_label TEXT    NOT NULL,
+  serving_g     REAL,
+  unit          TEXT    NOT NULL DEFAULT 'g',
+  kcal          REAL    NOT NULL,
+  protein_g     REAL,
+  carbs_g       REAL,
+  fat_g         REAL,
+  last_used_at  TEXT,
+  created_at    TEXT    NOT NULL DEFAULT ${NOW}
+);
+CREATE UNIQUE INDEX IF NOT EXISTS foods_barcode ON foods(user_id, barcode) WHERE barcode IS NOT NULL;
+CREATE INDEX IF NOT EXISTS foods_user ON foods(user_id, last_used_at);
+
+CREATE TABLE IF NOT EXISTS food_entries (
+  id         INTEGER PRIMARY KEY,
+  user_id    INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  day        TEXT    NOT NULL,
+  meal       TEXT    NOT NULL,
+  food_id    INTEGER REFERENCES foods(id) ON DELETE SET NULL,
+  name       TEXT    NOT NULL,
+  brand      TEXT,
+  amount     REAL    NOT NULL,
+  unit       TEXT    NOT NULL,
+  kcal       REAL    NOT NULL,
+  protein_g  REAL,
+  carbs_g    REAL,
+  fat_g      REAL,
+  created_at TEXT    NOT NULL DEFAULT ${NOW}
+);
+CREATE INDEX IF NOT EXISTS food_entries_day ON food_entries(user_id, day);
+`;
+
 /** Insert any built-in exercises / activity types that are missing. Safe to run every boot. */
 export const SCHEMA_V2 = `
 ALTER TABLE users ADD COLUMN token_version INTEGER NOT NULL DEFAULT 0;

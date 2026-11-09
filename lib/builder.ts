@@ -2,6 +2,7 @@ import { db } from "./db";
 import { listExercises } from "./repo/exercises";
 import type { Pattern } from "./exerciseSeed";
 import type { ExerciseDTO, RoutineBlockDTO } from "./types";
+import { DEFAULT_WEEKDAYS, splitFor } from "./splits";
 
 // Rule-based workout & program builder. No network, no AI — just movement patterns,
 // your equipment, and what you've actually been doing.
@@ -23,15 +24,13 @@ const T: Record<string, DayTemplate> = {
   push: { name: "Push", slots: ["h_push", "v_push", "h_push", "chest_iso", "side_delt", "triceps", "triceps", "core"] },
   pull: { name: "Pull", slots: ["v_pull", "h_pull", "h_pull", "rear_delt", "biceps", "biceps", "traps", "core"] },
   legs: { name: "Legs", slots: ["squat", "hinge", "lunge", "quad_iso", "ham_iso", "calves", "glute_iso", "core"] },
+  // Body part split. Repeated patterns pick different exercises, since a day never uses one twice.
+  chest: { name: "Chest", slots: ["h_push", "h_push", "chest_iso", "h_push", "chest_iso", "triceps", "core", "triceps"] },
+  back: { name: "Back", slots: ["v_pull", "h_pull", "h_pull", "v_pull", "rear_delt", "traps", "biceps", "core"] },
+  shoulders: { name: "Shoulders", slots: ["v_push", "side_delt", "rear_delt", "v_push", "side_delt", "traps", "core", "rear_delt"] },
+  arms: { name: "Arms", slots: ["biceps", "triceps", "biceps", "triceps", "biceps", "triceps", "forearms", "core"] },
 };
 
-const SPLITS: Record<number, { split: string; days: string[]; weekdays: number[] }> = {
-  2: { split: "Full Body", days: ["fullA", "fullB"], weekdays: [1, 4] },
-  3: { split: "Full Body", days: ["fullA", "fullB", "fullC"], weekdays: [1, 3, 5] },
-  4: { split: "Upper / Lower", days: ["upperA", "lowerA", "upperB", "lowerB"], weekdays: [1, 2, 4, 5] },
-  5: { split: "Push / Pull / Legs + Upper / Lower", days: ["push", "pull", "legs", "upperA", "lowerB"], weekdays: [1, 2, 3, 5, 6] },
-  6: { split: "Push / Pull / Legs ×2", days: ["push", "pull", "legs", "push", "pull", "legs"], weekdays: [1, 2, 3, 4, 5, 6] },
-};
 
 const COMPOUND = new Set<Pattern>(["squat", "hinge", "lunge", "h_push", "v_push", "h_pull", "v_pull"]);
 
@@ -160,14 +159,18 @@ export function buildWorkout(userId: number, o: { focus: string; minutes: number
 // ── Program ──────────────────────────────────────────────────────────────────
 
 export function buildProgram(userId: number, o: {
-  goal: Goal; days: number; minutes: number; equipment: string[];
+  goal: Goal; days: number; split?: string; weekdays?: number[]; seed?: number; minutes: number; equipment: string[];
   cardioDays: number; cardioMinutes: number; activityTypeId: number | null;
 }) {
-  const plan = SPLITS[Math.min(6, Math.max(2, o.days))];
-  const ctx = makeCtx(userId, o.equipment);
+  const n = Math.min(6, Math.max(2, o.days));
+  const plan = splitFor(n, o.split);
+  // Training days in week order. Anything that isn't exactly one weekday per session falls back to the default.
+  const wanted = [...new Set((o.weekdays ?? []).filter(d => Number.isInteger(d) && d >= 0 && d <= 6))];
+  const weekdays = (wanted.length === n ? wanted : DEFAULT_WEEKDAYS[n]).sort((a, b) => ((a + 6) % 7) - ((b + 6) % 7));
+  const ctx = makeCtx(userId, o.equipment, o.seed ?? 0);
   const count = exercisesForMinutes(o.minutes);
   const days: { weekday: number; name: string; blocks: RoutineBlockDTO[] }[] = plan.days.map((k, i) => ({
-    weekday: plan.weekdays[i],
+    weekday: weekdays[i],
     name: T[k].name + (plan.days.indexOf(k) !== i ? " 2" : ""),
     blocks: fillDay(ctx, T[k].slots, count, o.goal, o.minutes),
   }));
@@ -190,5 +193,5 @@ export function buildProgram(userId: number, o: {
   }
   days.sort((a, b) => ((a.weekday + 6) % 7) - ((b.weekday + 6) % 7));
   const goalName = { strength: "Strength", muscle: "Muscle", general: "General Fitness" }[o.goal];
-  return { name: `${o.days}-Day ${plan.split} · ${goalName}`, split: plan.split, days };
+  return { name: `${n}-Day ${plan.label} · ${goalName}`, split: plan.label, days };
 }

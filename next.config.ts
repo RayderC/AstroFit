@@ -9,7 +9,8 @@ const securityHeaders = [
   { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
   {
     key: "Permissions-Policy",
-    value: "camera=(), microphone=(), geolocation=(self)",
+    // The camera is only used to scan food barcodes.
+    value: "camera=(self), microphone=(), geolocation=(self)",
   },
   {
     key: "Content-Security-Policy",

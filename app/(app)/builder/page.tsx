@@ -7,6 +7,7 @@ import Icon from "@/app/components/Icon";
 import RoutineEditor from "@/app/components/RoutineEditor";
 import { api, useApi } from "@/lib/client";
 import { EQUIPMENT, MUSCLES } from "@/lib/exerciseSeed";
+import { DEFAULT_WEEKDAYS, SPLIT_OPTIONS, splitFor } from "@/lib/splits";
 import type { ActivityDTO, RoutineBlockDTO } from "@/lib/types";
 
 type Goal = "strength" | "muscle" | "general";
@@ -186,7 +187,11 @@ function ProgramTab() {
   const { data: activities } = useApi<ActivityDTO[]>("/api/activity-types");
   const { data: programs, reload } = useApi<SavedProgram[]>("/api/programs");
   const [goal, setGoal] = useState<Goal>("muscle");
-  const [days, setDays] = useState(4);
+  const [days, setDays] = useState(3);
+  const [split, setSplit] = useState("ppl");
+  const [weekdays, setWeekdays] = useState<number[]>(DEFAULT_WEEKDAYS[3]);
+  const [seed, setSeed] = useState(0);
+  const [busyDay, setBusyDay] = useState<number | null>(null);
   const [minutes, setMinutes] = useState(60);
   const [equipment, setEquipment] = useState(DEFAULT_EQUIPMENT);
   const [cardioDays, setCardioDays] = useState(0);
@@ -201,15 +206,52 @@ function ProgramTab() {
     if (activityTypeId == null && activities?.length) setActivityTypeId(activities[0].id);
   }, [activities, activityTypeId]);
 
-  const config = { goal, days, minutes, equipment, cardioDays, cardioMinutes, activityTypeId: cardioDays > 0 ? activityTypeId : null };
+  const chosen = splitFor(days, split);
+  const config = { goal, days, split: chosen.id, weekdays, minutes, equipment, cardioDays, cardioMinutes, activityTypeId: cardioDays > 0 ? activityTypeId : null };
 
+  function chooseDays(n: number) {
+    setDays(n);
+    setWeekdays(DEFAULT_WEEKDAYS[n]);
+    // Keep Push / Pull / Legs when the new day count has it.
+    if (!SPLIT_OPTIONS[n].some(o => o.id === split)) setSplit(SPLIT_OPTIONS[n][0].id);
+  }
+
+  function toggleWeekday(w: number) {
+    if (weekdays.includes(w)) setWeekdays(weekdays.filter(x => x !== w));
+    else if (weekdays.length < days) setWeekdays([...weekdays, w]);
+  }
+
+  type Generated = Omit<ProgramPlan, "days"> & { days: Omit<DayPlan, "key">[] };
   async function generate() {
+    if (weekdays.length !== days) return setErr(`Pick ${days} training days, or tap a day to free one up.`);
     setBusy(true); setErr(""); setMsg("");
     try {
-      const r = await api<Omit<ProgramPlan, "days"> & { days: Omit<DayPlan, "key">[] }>("/api/builder/program", { body: config });
+      const r = await api<Generated>("/api/builder/program", { body: { ...config, seed: 0 } });
+      setSeed(0);
       setPlan({ ...r, days: r.days.map(d => ({ ...d, key: Math.random() })) });
     } catch (e) { setErr((e as Error).message); }
     finally { setBusy(false); }
+  }
+
+  /** New exercises for one day only. Everything else stays as you've edited it. */
+  async function regenerateDay(i: number) {
+    if (!plan) return;
+    const next = seed + 1;
+    setBusyDay(i); setErr("");
+    try {
+      const r = await api<Generated>("/api/builder/program", { body: { ...config, weekdays: plan.days.filter(d => d.name !== "Cardio").map(d => d.weekday), seed: next } });
+      // Match on the day's name without any "+ Cardio", since you may have moved days around the week.
+      const base = (name: string) => name.replace(/ \+ Cardio$/, "");
+      const lifting = <T extends { name: string },>(days: T[]) => days.filter(d => d.name !== "Cardio");
+      const fresh = r.days.find(d => base(d.name) === base(plan.days[i].name)) ?? lifting(r.days)[lifting(plan.days).indexOf(plan.days[i])];
+      setSeed(next);
+      if (fresh) setPlan({ ...plan, days: plan.days.map((d, j) => (j === i ? {
+        ...d, key: Math.random(),
+        // Only the lifts are new. Cardio you added to this day stays.
+        blocks: [...fresh.blocks.filter(b => b.kind === "lift"), ...d.blocks.filter(b => b.kind === "cardio")],
+      } : d)) });
+    } catch (e) { setErr((e as Error).message); }
+    finally { setBusyDay(null); }
   }
 
   const setDay = (i: number, p: Partial<DayPlan>) => plan && setPlan({ ...plan, days: plan.days.map((d, j) => (j === i ? { ...d, ...p } : d)) });
@@ -255,8 +297,28 @@ function ProgramTab() {
           <GoalPicker value={goal} onChange={setGoal} />
           <div className="form-group">
             <label className="form-label">Lifting days per week</label>
-            <div className="seg">{[2, 3, 4, 5, 6].map(n => <button key={n} type="button" className={days === n ? "on" : ""} onClick={() => setDays(n)}>{n}</button>)}</div>
-            <p className="form-hint">{days <= 3 ? "Full body" : days === 4 ? "Upper / lower" : days === 5 ? "Push / pull / legs + upper / lower" : "Push / pull / legs twice"}</p>
+            <div className="seg">{[2, 3, 4, 5, 6].map(n => <button key={n} type="button" className={days === n ? "on" : ""} onClick={() => chooseDays(n)}>{n}</button>)}</div>
+          </div>
+          <div className="form-group">
+            <label className="form-label">Split</label>
+            <div className="split-options" role="radiogroup" aria-label="Split">
+              {SPLIT_OPTIONS[days].map(o => (
+                <button key={o.id} type="button" role="radio" aria-checked={chosen.id === o.id} className={`split-option ${chosen.id === o.id ? "on" : ""}`} onClick={() => setSplit(o.id)}>
+                  <b>{o.label}</b>
+                  <span>{o.hint}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+          <div className="form-group">
+            <label className="form-label">Training days <span className="text-muted">({weekdays.length} of {days})</span></label>
+            <div className="chip-wrap">
+              {WEEKDAYS.map(w => (
+                <button key={w} type="button" className={`filter-chip ${weekdays.includes(w) ? "active" : ""}`} aria-pressed={weekdays.includes(w)}
+                  disabled={!weekdays.includes(w) && weekdays.length >= days} onClick={() => toggleWeekday(w)}>{DOW[w].slice(0, 3)}</button>
+              ))}
+            </div>
+            <p className="form-hint">{weekdays.length < days ? `Pick ${days - weekdays.length} more.` : "Tap a day to swap it for another."}</p>
           </div>
           <MinutesInput value={minutes} onChange={setMinutes} min={30} label="Minutes per session" />
           <EquipmentPicker value={equipment} onChange={setEquipment} />
@@ -299,9 +361,15 @@ function ProgramTab() {
                   {WEEKDAYS.map(w => <option key={w} value={w}>{DOW[w]}</option>)}
                 </select>
               </div>
-              <RoutineEditor blocks={d.blocks} onChange={blocks => setDay(i, { blocks })} />
+              <RoutineEditor key={d.key} blocks={d.blocks} onChange={blocks => setDay(i, { blocks })} />
+              {d.name !== "Cardio" && (
+                <button className="btn-ghost btn-sm" style={{ marginTop: 8 }} disabled={busyDay !== null} onClick={() => regenerateDay(i)}>
+                  <Icon name="swap" size={14} /> {busyDay === i ? "Picking new exercises…" : "New exercises for this day"}
+                </button>
+              )}
             </div>
           ))}
+          <WeeklyVolume days={plan.days} />
           <button className="btn-primary btn-full" disabled={busy} onClick={save}>Save program</button>
           <p className="form-hint" style={{ marginTop: 8 }}>Saving makes this your active program.</p>
         </div>
@@ -337,6 +405,38 @@ function ProgramTab() {
           </div>
         )}
       </div>
+    </div>
+  );
+}
+
+/** Weekly sets per muscle for the plan being edited, counted the same way as the Progress page. */
+function WeeklyVolume({ days }: { days: DayPlan[] }) {
+  const sets = new Map<string, number>();
+  for (const d of days) for (const b of d.blocks) {
+    if (b.kind !== "lift" || !b.exercise) continue;
+    for (const m of b.exercise.primary) sets.set(m, (sets.get(m) ?? 0) + b.setsCount);
+    for (const m of b.exercise.secondary ?? []) sets.set(m, (sets.get(m) ?? 0) + b.setsCount / 2);
+  }
+  const rows = MUSCLES.map(m => ({ ...m, n: sets.get(m.id) ?? 0 })).filter(r => r.n > 0).sort((a, b) => b.n - a.n);
+  if (!rows.length) return null;
+  const max = Math.max(20, ...rows.map(r => r.n));
+  const missing = MUSCLES.filter(m => !sets.has(m.id)).map(m => m.label);
+  return (
+    <div className="card section">
+      <div className="card-header"><span className="card-title">Sets per muscle each week</span></div>
+      <div className="bars">
+        {rows.map(r => (
+          <div key={r.id} className="bar-row">
+            <span className="bar-label">{r.label}</span>
+            <span className={`bar-track ${r.n < 6 ? "low" : r.n > 22 ? "high" : ""}`}><i style={{ width: `${(r.n / max) * 100}%` }} /></span>
+            <b className="bar-val">{Math.round(r.n * 10) / 10}</b>
+          </div>
+        ))}
+      </div>
+      <p className="form-hint" style={{ marginTop: 10 }}>
+        Most people build muscle well on about 10 to 20 hard sets per muscle a week. Secondary muscles count as half a set.
+        {missing.length > 0 && ` Not trained: ${missing.join(", ")}.`}
+      </p>
     </div>
   );
 }

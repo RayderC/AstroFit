@@ -1,3 +1,4 @@
+import { bestEfforts, EFFORTS, type RoutePoint } from "../geo";
 import { db, nowIso } from "../db";
 import { bad, notFound, type UserRow } from "../api";
 import { suggest } from "../progression";
@@ -446,6 +447,53 @@ export function recordsIn(userId: number, sessionId: number): RecordHit[] {
     if (maxW(now) > maxW(before) + 1e-6) hits.push({ exercise: name, label: "Heaviest weight", value: `${maxW(now)}` });
     if (max1(now) > max1(before) + 1e-6) hits.push({ exercise: name, label: "Best est. 1RM", value: `${max1(now)}` });
     if (maxV(now) > maxV(before) + 1e-6) hits.push({ exercise: name, label: "Best set volume", value: `${maxV(now)}` });
+  }
+  return [...hits, ...cardioRecordsIn(userId, sessionId, s.started_at)];
+}
+
+/** Longest, fastest and best efforts per activity, against every earlier session with that activity. */
+function cardioRecordsIn(userId: number, sessionId: number, startedAt: string): RecordHit[] {
+  type Row = { activity_id: number; name: string; duration_s: number | null; distance_m: number | null; route: string | null };
+  const now = db.prepare(`SELECT b.activity_type_id activity_id, a.name, c.duration_s, c.distance_m, c.route FROM cardio c
+    JOIN blocks b ON b.id = c.block_id JOIN activity_types a ON a.id = b.activity_type_id
+    WHERE b.session_id = ? AND c.done = 1`).all(sessionId) as Row[];
+  const hits: RecordHit[] = [];
+  const efforts = (r: Row) => {
+    const out = new Map<string, number>();
+    let gps: Map<string, number> | null = null;
+    if (r.route) { try { gps = bestEfforts(JSON.parse(r.route) as RoutePoint[]); } catch { /* bad route */ } }
+    for (const e of EFFORTS) {
+      if (!r.distance_m || !r.duration_s || r.distance_m < e.m) continue;
+      out.set(e.label, gps?.get(e.label) ?? (r.duration_s / r.distance_m) * e.m);
+    }
+    return out;
+  };
+  for (const activityId of new Set(now.map(r => r.activity_id))) {
+    const mine = now.filter(r => r.activity_id === activityId);
+    const before = db.prepare(`SELECT b.activity_type_id activity_id, a.name, c.duration_s, c.distance_m, c.route FROM cardio c
+      JOIN blocks b ON b.id = c.block_id JOIN sessions se ON se.id = b.session_id JOIN activity_types a ON a.id = b.activity_type_id
+      WHERE se.user_id = ? AND b.activity_type_id = ? AND se.ended_at IS NOT NULL AND se.started_at < ? AND se.id != ? AND c.done = 1`)
+      .all(userId, activityId, startedAt, sessionId) as Row[];
+    if (!before.length) continue; // the first time isn't a record
+    const name = mine[0].name;
+    const max = (rows: Row[], f: (r: Row) => number | null) => Math.max(0, ...rows.map(r => f(r) ?? 0));
+    const dist = max(mine, r => r.distance_m), distBefore = max(before, r => r.distance_m);
+    if (dist > distBefore + 1) hits.push({ exercise: name, label: "Longest distance", value: String(dist), kind: "distance" });
+    const dur = max(mine, r => r.duration_s), durBefore = max(before, r => r.duration_s);
+    if (dur > durBefore + 1) hits.push({ exercise: name, label: "Longest time", value: String(dur), kind: "duration" });
+    // Short bits are usually GPS glitches or mis-taps, so they can't be the fastest pace.
+    const pace = (rows: Row[]) => Math.min(Infinity, ...rows.filter(r => (r.distance_m ?? 0) >= 400 && r.duration_s).map(r => r.duration_s! / r.distance_m!));
+    const p = pace(mine), pBefore = pace(before);
+    if (isFinite(p) && isFinite(pBefore) && p < pBefore - 1e-6) hits.push({ exercise: name, label: "Fastest pace", value: String(p), kind: "pace" });
+    const bestBefore = new Map<string, number>();
+    for (const r of before) for (const [k, t] of efforts(r)) bestBefore.set(k, Math.min(bestBefore.get(k) ?? Infinity, t));
+    const bestNow = new Map<string, number>();
+    for (const r of mine) for (const [k, t] of efforts(r)) bestNow.set(k, Math.min(bestNow.get(k) ?? Infinity, t));
+    for (const [k, t] of bestNow) {
+      const b = bestBefore.get(k);
+      // A first-ever 5K is a record too, once you've done this activity before.
+      if (b === undefined || t < b - 0.5) hits.push({ exercise: name, label: `Best ${k}`, value: String(t), kind: "duration" });
+    }
   }
   return hits;
 }

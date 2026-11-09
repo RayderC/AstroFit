@@ -19,6 +19,7 @@ There is no test suite. Set `DATABASE_PATH` to a scratch file when running local
 - Lifting and cardio are equal. One session holds both lift and cardio blocks.
 - No gamification: no XP, levels, streaks or challenges.
 - Logging follows the Strong app: Previous column, W/D/F set tags, per-exercise rest, supersets, sticky notes.
+- Food tracking is optional and lives on its own tab. It never feeds into workouts.
 
 ## Architecture
 
@@ -42,7 +43,9 @@ This is the rule most likely to cause data bugs:
 
 - `lib/repo/sessions.ts`: core logging, prefill from last time plus progression (`seedSets`), supersets, finish with summary and records. Finishing deletes unfinished sets and empty blocks, so history only holds `done = 1` rows.
 - `lib/progression.ts`: `suggest()` compares the last session's sets at top weight to the rep range. `increase` needs every one of them at the top.
-- `lib/builder.ts`: rule-based generator. Days/week picks the split (2-3 full body, 4 upper/lower, 5 PPL+UL, 6 PPL×2), exercises come from movement pattern + equipment, leaning toward what the user already does.
+- `lib/builder.ts`: rule-based generator. The split options for each day count live in `lib/splits.ts` (shared with the page), and the user picks one plus their training weekdays. Exercises come from movement pattern + equipment, leaning toward what the user already does. `seed` rotates the variations, which is how one day gets regenerated.
+- `lib/geo.ts`: GPS math (distance, splits, best efforts inside a track), used by the tracker and by the server for Progress and records. `GpsTracker` saves the track to localStorage every few seconds, so a reload mid-run picks it back up.
+- `lib/repo/food.ts`, `lib/openFoodFacts.ts`: food diary. Foods are stored per serving (kcal and grams of macros), with `serving_g` when the serving's weight is known. Entries copy the numbers, so editing or deleting a food never changes past days. Barcodes and online search go through the server to Open Food Facts (fixed host, identifying User-Agent, rate-limited per user); a scanned product is saved to the user's foods. The scanner uses the browser's `BarcodeDetector` when there is one and ZXing otherwise. Live camera scanning needs HTTPS; taking a photo works without it.
 - `lib/stats.ts`, `lib/progress.ts`: exercise detail/records, muscle sets, Progress page data. Warm-ups don't count toward volume or records.
 - `lib/strong.ts` is the pure CSV parser; `lib/repo/strongImport.ts` does matching and writes. Dedupe key is `sessions.source = 'strong'` + `source_key` (raw date + workout name). It deliberately excludes `Workout #`, which can renumber between exports.
 - `lib/migrateV1.ts`: runs before the DB opens when a v1 database (has `xp_events`) is found. It builds into a temp file and swaps it in only when complete. v1 stored raw numbers in an unrecorded unit, hence `V1_WEIGHT_UNIT` / `V1_DISTANCE_UNIT`.

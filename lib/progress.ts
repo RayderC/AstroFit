@@ -3,17 +3,12 @@ import { exerciseDisplayName } from "./exerciseSeed";
 import { muscleSets } from "./stats";
 import { addDays, dayStartUtc, localDay, mondayOf } from "./tz";
 import { e1rm } from "./units";
+import { bestEfforts, EFFORTS, type RoutePoint } from "./geo";
 
 // Everything here is in kg / meters / seconds. The page converts for display.
 
 /** Below this a pace is usually a GPS glitch or a mis-tap, so it can't be a "fastest" record. */
 const MIN_PACE_DISTANCE_M = 400;
-const EFFORTS = [
-  { label: "1 mile", m: 1609.344 },
-  { label: "5K", m: 5000 },
-  { label: "10K", m: 10000 },
-  { label: "Half marathon", m: 21097.5 },
-];
 
 function weekList(first: string, last: string) {
   const out: string[] = [];
@@ -68,10 +63,10 @@ export function progress(userId: number, tz: string, weeks: number) {
 
   // ── Cardio ──
   const cardio = db.prepare(`
-    SELECT a.id, a.name, a.has_distance, se.id sid, se.started_at date, c.duration_s, c.distance_m
+    SELECT a.id, a.name, a.has_distance, se.id sid, se.started_at date, c.duration_s, c.distance_m, c.route
     FROM cardio c JOIN blocks b ON b.id = c.block_id JOIN sessions se ON se.id = b.session_id JOIN activity_types a ON a.id = b.activity_type_id
     WHERE se.user_id = ? AND se.ended_at IS NOT NULL AND c.done = 1 ORDER BY se.started_at`)
-    .all(userId) as { id: number; name: string; has_distance: number; sid: number; date: string; duration_s: number | null; distance_m: number | null }[];
+    .all(userId) as { id: number; name: string; has_distance: number; sid: number; date: string; duration_s: number | null; distance_m: number | null; route: string | null }[];
 
   const cw = new Map(list.map(w => [w, { week: w, durationS: 0, distanceM: 0, sessions: new Set<number>() }]));
   type Act = {
@@ -80,7 +75,7 @@ export function progress(userId: number, tz: string, weeks: number) {
     longestDistance: { distanceM: number; durationS: number | null; date: string } | null;
     longestTime: { durationS: number; distanceM: number | null; date: string } | null;
     fastest: { distanceM: number; durationS: number; date: string } | null;
-    efforts: { label: string; meters: number; timeS: number; date: string }[];
+    efforts: { label: string; meters: number; timeS: number; date: string; fromGps: boolean }[];
   };
   const acts = new Map<number, Act>();
   for (const c of cardio) {
@@ -97,13 +92,17 @@ export function progress(userId: number, tz: string, weeks: number) {
     if (dist > 0 && dur > 0) {
       if (c.date >= fromIso) a.points.push({ date: c.date, durationS: dur, distanceM: dist });
       if (dist >= MIN_PACE_DISTANCE_M && (!a.fastest || dur / dist < a.fastest.durationS / a.fastest.distanceM)) a.fastest = { distanceM: dist, durationS: dur, date: c.date };
+      // With a GPS track, the fastest stretch of each distance inside it. Without one, the whole
+      // effort's average pace held over the distance.
+      let gps: Map<string, number> | null = null;
+      if (c.route) { try { gps = bestEfforts(JSON.parse(c.route) as RoutePoint[]); } catch { gps = null; } }
       for (const e of EFFORTS) {
         if (dist < e.m) continue;
-        // There are no splits to read, so this is the whole effort's pace held over the distance.
-        const t = (dur / dist) * e.m;
+        const fromGps = gps?.has(e.label) ?? false;
+        const t = fromGps ? gps!.get(e.label)! : (dur / dist) * e.m;
         const cur = a.efforts.find(x => x.label === e.label);
-        if (!cur) a.efforts.push({ label: e.label, meters: e.m, timeS: t, date: c.date });
-        else if (t < cur.timeS) Object.assign(cur, { timeS: t, date: c.date });
+        if (!cur) a.efforts.push({ label: e.label, meters: e.m, timeS: t, date: c.date, fromGps });
+        else if (t < cur.timeS) Object.assign(cur, { timeS: t, date: c.date, fromGps });
       }
     }
   }

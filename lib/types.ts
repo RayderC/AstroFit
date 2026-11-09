@@ -107,7 +107,8 @@ export type SessionSummary = {
   hasCardio: boolean;
 };
 
-export type RecordHit = { exercise: string; label: string; value: string };
+/** value is a number in stored units: kg for weight, meters for distance, seconds for duration, seconds per meter for pace. */
+export type RecordHit = { exercise: string; label: string; value: string; kind?: "weight" | "distance" | "duration" | "pace" };
 
 export type RoutineBlockDTO = {
   id?: number;
@@ -136,4 +137,32 @@ export type RoutineDTO = {
   updatedAt: string;
   blocks: RoutineBlockDTO[];
   lastDone: string | null;
+};
+
+// ── Food ──
+
+export type Meal = "breakfast" | "lunch" | "dinner" | "snack";
+
+/** Numbers are per serving. servingG is the serving's grams (or ml), when known. */
+export type FoodDTO = {
+  id: number; name: string; brand: string | null; barcode: string | null; source: "custom" | "off";
+  servingLabel: string; servingG: number | null; unit: "g" | "ml";
+  kcal: number; proteinG: number | null; carbsG: number | null; fatG: number | null;
+};
+/** A food found online that isn't saved yet, so it has no id. */
+export type FoundFood = Omit<FoodDTO, "id"> & { id?: number };
+
+export type FoodEntryDTO = {
+  id: number; day: string; meal: Meal; foodId: number | null; name: string; brand: string | null;
+  amount: number; unit: "serving" | "g" | "ml"; kcal: number; proteinG: number | null; carbsG: number | null; fatG: number | null;
+};
+
+export type FoodGoals = { kcal: number | null; proteinG: number | null; carbsG: number | null; fatG: number | null };
+
+export type FoodDayDTO = {
+  day: string;
+  entries: FoodEntryDTO[];
+  totals: { kcal: number; proteinG: number; carbsG: number; fatG: number };
+  goals: FoodGoals;
+  week: { day: string; kcal: number }[];
 };

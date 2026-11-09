@@ -17,7 +17,8 @@ export default function RouteSvg({ route, height = 160 }: { route: [number, numb
   return (
     <svg className="route-svg" viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="xMidYMid meet" aria-label="Route">
       <defs>
-        <linearGradient id="routeGrad" x1="0" x2="1">
+        {/* In user space: a perfectly straight north-south route has zero width, and a gradient sized to that draws nothing. */}
+        <linearGradient id="routeGrad" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2={W} y2={H}>
           <stop offset="0" stopColor="var(--accent-cyan)" />
           <stop offset="1" stopColor="var(--primary-light)" />
         </linearGradient>
@@ -29,29 +30,5 @@ export default function RouteSvg({ route, height = 160 }: { route: [number, numb
   );
 }
 
-export function haversine(a: [number, number], b: [number, number]) {
-  const R = 6371000;
-  const toR = (x: number) => (x * Math.PI) / 180;
-  const dLat = toR(b[0] - a[0]);
-  const dLon = toR(b[1] - a[1]);
-  const h = Math.sin(dLat / 2) ** 2 + Math.cos(toR(a[0])) * Math.cos(toR(b[0])) * Math.sin(dLon / 2) ** 2;
-  return 2 * R * Math.asin(Math.sqrt(h));
-}
-
-/** Split times per unit (mi or km) from a route. */
-export function splitsFromRoute(route: [number, number, number][], unitM: number) {
-  const out: { n: number; seconds: number }[] = [];
-  let dist = 0, lastT = route[0]?.[2] ?? 0, next = unitM;
-  for (let i = 1; i < route.length; i++) {
-    const seg = haversine([route[i - 1][0], route[i - 1][1]], [route[i][0], route[i][1]]);
-    if (dist + seg >= next && seg > 0) {
-      const frac = (next - dist) / seg;
-      const t = route[i - 1][2] + (route[i][2] - route[i - 1][2]) * frac;
-      out.push({ n: out.length + 1, seconds: (t - lastT) / 1000 });
-      lastT = t;
-      next += unitM;
-    }
-    dist += seg;
-  }
-  return out;
-}
+// The math lives in lib/geo.ts so the server can use it for records.
+export { haversine, splitsFromRoute } from "@/lib/geo";

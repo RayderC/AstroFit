@@ -4,8 +4,9 @@ import { useEffect, useState } from "react";
 import Icon from "@/app/components/Icon";
 import { Sheet } from "@/app/components/Modal";
 import { useMe } from "@/app/components/MeContext";
-import GpsTracker from "./GpsTracker";
-import RouteSvg, { splitsFromRoute } from "./RouteSvg";
+import GpsTracker, { savedTrack } from "./GpsTracker";
+import RouteSvg from "./RouteSvg";
+import { showsSpeed, splitsFromRoute } from "@/lib/geo";
 import { api, fmtDate, parseNum } from "@/lib/client";
 import { fmtDistance, fmtDuration, fmtPace, M_PER_MI, paceSecPer, parseDuration, toM } from "@/lib/units";
 import type { CardioBlockDTO, CardioDTO, SessionDTO } from "@/lib/types";
@@ -26,6 +27,17 @@ export default function CardioCard({ block, finished, onSession, onChange }: {
   const [menu, setMenu] = useState(false);
   const [gps, setGps] = useState(false);
   const [err, setErr] = useState("");
+  const [unfinished, setUnfinished] = useState(false);
+  const speedMode = showsSpeed(block.activity.icon);
+  const speedUnit = du === "mi" ? "mph" : "km/h";
+  const speedOf = (secPerUnit: number | null) => (secPerUnit ? (Math.round((3600 / secPerUnit) * 10) / 10).toFixed(1) : "–");
+
+  // A track still running when the page reloaded goes straight back to the tracker.
+  useEffect(() => {
+    if (finished || c.done) return;
+    const s = savedTrack(block.id);
+    if (s) { setUnfinished(true); setGps(true); }
+  }, [block.id, finished, c.done]);
 
   useEffect(() => {
     setF({
@@ -94,17 +106,17 @@ export default function CardioCard({ block, finished, onSession, onChange }: {
           <input className="set-input" inputMode="numeric" value={f.cal} onChange={set("cal")} onBlur={() => save()} /></label>
         <button className={`set-check big ${c.done ? "on" : ""}`} onClick={toggleDone} aria-label="Complete cardio"><Icon name="check" size={18} /></button>
       </div>
-      {pace && block.activity.hasDistance && <div className="cardio-pace">Pace {fmtPace(pace, du)}</div>}
+      {pace && block.activity.hasDistance && <div className="cardio-pace">{speedMode ? `Avg speed ${speedOf(pace)} ${speedUnit}` : `Pace ${fmtPace(pace, du)}`}</div>}
       {c.route && c.route.length > 1 && (
         <div className="cardio-route">
           <RouteSvg route={c.route} />
           {splits.length > 0 && (
-            <div className="gps-splits">{splits.map(s => <div key={s.n}><span>{du} {s.n}</span><b>{fmtDuration(s.seconds)}</b></div>)}</div>
+            <div className="gps-splits">{splits.map(s => <div key={s.n}><span>{du} {s.n}</span><b>{speedMode ? `${speedOf(s.seconds)} ${speedUnit}` : fmtDuration(s.seconds)}</b></div>)}</div>
           )}
         </div>
       )}
       {!finished && block.activity.hasDistance && !c.done && (
-        <button className="add-set-btn" onClick={() => setGps(true)}><Icon name="gps" size={14} /> Track with GPS</button>
+        <button className="add-set-btn" onClick={() => setGps(true)}><Icon name="gps" size={14} /> {unfinished ? "Back to GPS tracking" : "Track with GPS"}</button>
       )}
 
       {menu && <Sheet title={block.activity.name} onClose={() => setMenu(false)} actions={[
@@ -114,8 +126,9 @@ export default function CardioCard({ block, finished, onSession, onChange }: {
         { label: "Remove", danger: true, onClick: async () => onSession(await api(`/api/blocks/${block.id}`, { method: "DELETE" })) },
       ]} />}
 
-      {gps && <GpsTracker title={block.activity.name} onCancel={() => setGps(false)} onFinish={async r => {
+      {gps && <GpsTracker blockId={block.id} title={block.activity.name} icon={block.activity.icon} onCancel={() => { setGps(false); setUnfinished(false); }} onFinish={async r => {
         setGps(false);
+        setUnfinished(false);
         await save({ durationS: r.durationS, distanceM: r.distanceM, elevationM: r.elevationM, route: r.route.length > 1 ? r.route : null, done: true });
       }} />}
     </div>

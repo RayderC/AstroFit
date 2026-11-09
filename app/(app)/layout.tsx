@@ -10,6 +10,7 @@ import { api, useApi } from "@/lib/client";
 const NAV = [
   { href: "/", label: "Today", icon: "today" },
   { href: "/history", label: "History", icon: "history" },
+  { href: "/food", label: "Food", icon: "food" },
   { href: "/progress", label: "Progress", icon: "progress" },
   { href: "/routines", label: "Routines", icon: "routines" },
   { href: "/builder", label: "Builder", icon: "builder" },
@@ -22,6 +23,7 @@ const TABS = [
   { href: "/", label: "Today", icon: "today" },
   { href: "/history", label: "History", icon: "history" },
   { href: "__workout", label: "Workout", icon: "dumbbell" },
+  { href: "/food", label: "Food", icon: "food" },
   { href: "/progress", label: "Progress", icon: "progress" },
 ];
 
