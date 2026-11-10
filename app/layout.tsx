@@ -16,7 +16,7 @@ export const metadata: Metadata = {
   description: "Self-hosted lifting and cardio tracker.",
   manifest: "/manifest.webmanifest",
   icons: { icon: "/icons/icon-192.png", apple: "/icons/apple-touch-icon.png" },
-  appleWebApp: { capable: true, statusBarStyle: "black-translucent", title: "AstroFit" },
+  appleWebApp: { capable: true, statusBarStyle: "black", title: "AstroFit" },
   other: { "mobile-web-app-capable": "yes" },
 };
 
