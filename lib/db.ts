@@ -1,7 +1,7 @@
 import Database from "better-sqlite3";
 import fs from "fs";
 import path from "path";
-import { SCHEMA_V1, SCHEMA_V2, SCHEMA_V3, seedLibrary } from "./schema";
+import { SCHEMA_V1, SCHEMA_V2, SCHEMA_V3, SCHEMA_V4, seedLibrary } from "./schema";
 import { isV1Database, migrateFromV1 } from "./migrateV1";
 
 export const DB_PATH = process.env.DATABASE_PATH || path.join(process.cwd(), "astrofit.db");
@@ -31,6 +31,8 @@ const MIGRATIONS: ((db: Database.Database) => void)[] = [
   db => { db.exec(SCHEMA_V2); },
   // 3: food diary
   db => { db.exec(SCHEMA_V3); },
+  // 4: height, sex and birth year for personal plans
+  db => { db.exec(SCHEMA_V4); },
 ];
 
 export function migrate(db: Database.Database) {

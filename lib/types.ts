@@ -166,3 +166,53 @@ export type FoodDayDTO = {
   goals: FoodGoals;
   week: { day: string; kcal: number }[];
 };
+
+// ── Personal plans (lib/coach.ts) ──
+
+export type CoachAbout = {
+  heightCm: number | null;
+  sex: "male" | "female" | null;
+  birthYear: number | null;
+  /** Latest logged weight and body fat, from the body log. */
+  weightKg: number | null;
+  weightDate: string | null;
+  bodyFatPct: number | null;
+  bodyFatDate: string | null;
+};
+
+export type CoachStats = {
+  totalSessions: number;
+  trainingMonths: number;
+  windowWeeks: number;
+  sessionsPerWeek: number;
+  /** Share of weeks in the window with at least one workout, 0 to 1. */
+  consistency: number;
+  daysSinceLast: number | null;
+  typicalMinutes: number | null;
+  typicalReps: number | null;
+  /** Working sets per muscle each week over the last 4 weeks. Secondary muscles count half. */
+  weeklySets: Record<string, number>;
+  cardioMinutesPerWeek: number;
+  cardioSessionsPerWeek: number;
+  bestLifts: { name: string; e1rmKg: number }[];
+};
+
+export type CoachRecommendation = {
+  level: "beginner" | "intermediate" | "advanced";
+  goal: "strength" | "muscle" | "general";
+  days: number;
+  split: string;
+  minutes: number;
+  cardioDays: number;
+  cardioMinutes: number;
+  lagging: string[];
+  returning: boolean;
+  older: boolean;
+  bmi: number | null;
+  /** Fat-free mass index: lean mass for your height. */
+  ffmi: number | null;
+  fatBand: "lean" | "fit" | "average" | "high" | null;
+  why: string[];
+};
+
+export type CoachProfile = { about: CoachAbout; stats: CoachStats; recommendation: CoachRecommendation; aiEnabled?: boolean };

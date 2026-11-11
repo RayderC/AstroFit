@@ -253,3 +253,10 @@ export function seedLibrary(db: Database.Database) {
     for (const [name, hasDist, icon] of ACTIVITY_SEED) insA.run(name, hasDist, icon);
   })();
 }
+
+/** About you, for building a plan that fits: height, sex and birth year. Weight and body fat stay in body_entries. */
+export const SCHEMA_V4 = `
+ALTER TABLE users ADD COLUMN height_cm REAL;
+ALTER TABLE users ADD COLUMN sex TEXT;
+ALTER TABLE users ADD COLUMN birth_year INTEGER;
+`;

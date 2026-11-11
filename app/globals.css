@@ -1622,3 +1622,53 @@ button.row-card { width: 100%; text-align: left; cursor: pointer; font-family: i
   .food-summary { gap: 14px; }
   .food-ring, .food-ring svg { width: 104px; height: 104px; }
 }
+
+/* ── Builder: Base it on me ── */
+.personal-toggle {
+  display: flex; gap: 12px; align-items: flex-start; padding: 14px; cursor: pointer;
+  border: 1px solid rgba(34, 211, 238, 0.3); border-radius: var(--radius-sm); background: rgba(34, 211, 238, 0.05);
+}
+.personal-toggle input { width: 20px; height: 20px; margin-top: 2px; flex-shrink: 0; accent-color: var(--primary-light); }
+.personal-toggle > span { display: flex; flex-direction: column; gap: 3px; }
+.personal-toggle b { font-size: 15px; color: var(--text); }
+.personal-toggle > span > span { font-size: 12.5px; color: var(--text-muted); line-height: 1.5; }
+.personal { padding: 14px; border: 1px solid var(--border-bright); border-radius: var(--radius-sm); background: var(--surface-2); }
+.personal-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+.personal-head .form-label { margin: 0; }
+.personal-facts { font-size: 14px; color: var(--text); line-height: 1.6; }
+.personal-stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; margin-bottom: 8px; }
+.personal-stats > div { display: flex; flex-direction: column; gap: 2px; padding: 8px; background: var(--surface-3, rgba(255,255,255,0.03)); border-radius: 8px; min-width: 0; }
+.personal-stats b { font-family: var(--font-mono); font-size: 16px; color: var(--accent-cyan); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.personal-stats span { font-size: 11px; color: var(--text-subtle); line-height: 1.3; }
+.personal-why { margin: 0; padding-left: 18px; display: flex; flex-direction: column; gap: 6px; font-size: 13px; color: var(--text-muted); line-height: 1.5; }
+.personal-why li::marker { color: var(--accent-cyan); }
+.height-ftin { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.link-btn { background: none; border: none; padding: 0; color: var(--accent-cyan); font: inherit; font-size: 12px; cursor: pointer; text-decoration: underline; text-underline-offset: 3px; }
+.link-btn:hover { color: var(--text); }
+@media (max-width: 640px) {
+  .personal-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+/* ── Admin: optional service keys, with a fold-out guide like ComicOrbit's AniList one ── */
+.key-setup { display: flex; flex-direction: column; gap: 10px; }
+.key-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.key-head .section-title { margin: 0; }
+.badge-dim { background: rgba(255,255,255,0.04); color: var(--text-subtle); border: 1px solid var(--border-bright); }
+.guide-toggle {
+  display: inline-flex; align-items: center; gap: 8px; align-self: flex-start; padding: 0; background: none; border: none; cursor: pointer;
+  color: var(--primary-light); font: inherit; font-size: 13px; font-weight: 600;
+}
+.guide-toggle > span { font-size: 10px; transition: transform 0.2s; display: inline-block; }
+.guide-toggle.open { color: var(--accent-cyan); }
+.guide-toggle.open > span { transform: rotate(90deg); }
+.guide-steps {
+  margin: 0; padding: 12px 14px 12px 34px; display: flex; flex-direction: column; gap: 10px;
+  background: rgba(34, 211, 238, 0.04); border: 1px solid rgba(34, 211, 238, 0.2); border-radius: var(--radius-sm);
+  font-size: 13px; color: var(--text-muted); line-height: 1.55;
+}
+.guide-steps li::marker { color: var(--accent-cyan); font-family: var(--font-mono); font-weight: 700; }
+.guide-steps b { color: var(--text); }
+.guide-steps a { color: var(--accent-cyan); text-decoration: underline; text-underline-offset: 3px; }
+.key-input { font-family: var(--font-mono); font-size: 12px; }
+.key-actions { flex-wrap: wrap; }
+.key-ok { color: var(--success); font-size: 13px; }

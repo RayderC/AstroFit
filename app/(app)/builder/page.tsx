@@ -5,10 +5,12 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Icon from "@/app/components/Icon";
 import RoutineEditor from "@/app/components/RoutineEditor";
-import { api, useApi } from "@/lib/client";
+import PersonalPlan from "@/app/components/PersonalPlan";
+import { useMe } from "@/app/components/MeContext";
+import { api, localDay, useApi } from "@/lib/client";
 import { EQUIPMENT, MUSCLES } from "@/lib/exerciseSeed";
 import { DEFAULT_WEEKDAYS, SPLIT_OPTIONS, splitFor } from "@/lib/splits";
-import type { ActivityDTO, RoutineBlockDTO } from "@/lib/types";
+import type { ActivityDTO, CoachProfile, CoachRecommendation, RoutineBlockDTO } from "@/lib/types";
 
 type Goal = "strength" | "muscle" | "general";
 
@@ -184,7 +186,13 @@ type SavedProgram = {
 };
 
 function ProgramTab() {
+  const { me } = useMe();
   const { data: activities } = useApi<ActivityDTO[]>("/api/activity-types");
+  const [personal, setPersonal] = useState(false);
+  const [profile, setProfile] = useState<CoachProfile | null>(null);
+  const [tips, setTips] = useState<string[] | null>(null);
+  const [tipsBusy, setTipsBusy] = useState(false);
+  const today = localDay();
   const { data: programs, reload } = useApi<SavedProgram[]>("/api/programs");
   const [goal, setGoal] = useState<Goal>("muscle");
   const [days, setDays] = useState(3);
@@ -207,7 +215,45 @@ function ProgramTab() {
   }, [activities, activityTypeId]);
 
   const chosen = splitFor(days, split);
-  const config = { goal, days, split: chosen.id, weekdays, minutes, equipment, cardioDays, cardioMinutes, activityTypeId: cardioDays > 0 ? activityTypeId : null };
+  const config = { goal, days, split: chosen.id, weekdays, minutes, equipment, cardioDays, cardioMinutes, activityTypeId: cardioDays > 0 ? activityTypeId : null, personalize: personal, today };
+
+  /** Fill the settings in from the recommendation. Everything stays editable. */
+  function applyRecommendation(r: CoachRecommendation) {
+    setGoal(r.goal);
+    setDays(r.days);
+    setWeekdays(DEFAULT_WEEKDAYS[r.days]);
+    setSplit(r.split);
+    setMinutes(r.minutes);
+    setCardioDays(r.cardioDays);
+    setCardioMinutes(r.cardioMinutes);
+  }
+
+  function takeProfile(p: CoachProfile) {
+    setProfile(p);
+    applyRecommendation(p.recommendation);
+    setTips(null);
+  }
+
+  async function togglePersonal(on: boolean) {
+    setPersonal(on);
+    setErr("");
+    if (!on) return;
+    try { takeProfile(await api<CoachProfile>(`/api/builder/profile?today=${today}`)); }
+    catch (e) { setErr((e as Error).message); setPersonal(false); }
+  }
+
+  async function getTips() {
+    if (!plan) return;
+    setTipsBusy(true); setErr("");
+    try {
+      const summary = { name: plan.name, days: plan.days.map(d => ({
+        weekday: DOW[d.weekday], name: d.name,
+        exercises: d.blocks.map(b => b.exercise?.displayName ?? b.activity?.name ?? "").filter(Boolean),
+      })) };
+      setTips((await api<{ tips: string[] }>("/api/builder/coach", { body: { today, plan: summary } })).tips);
+    } catch (e) { setErr((e as Error).message); }
+    finally { setTipsBusy(false); }
+  }
 
   function chooseDays(n: number) {
     setDays(n);
@@ -294,6 +340,14 @@ function ProgramTab() {
     <div>
       <div className="card section">
         <div className="form-stack">
+          <label className="personal-toggle">
+            <input type="checkbox" checked={personal} onChange={e => togglePersonal(e.target.checked)} />
+            <span>
+              <b>Base it on me</b>
+              <span>Uses your workout history, weight, height and body fat to pick the days, split, goal, cardio and sets that suit you now.</span>
+            </span>
+          </label>
+          {personal && profile && <PersonalPlan profile={profile} unit={me.weightUnit} today={today} onSaved={takeProfile} />}
           <GoalPicker value={goal} onChange={setGoal} />
           <div className="form-group">
             <label className="form-label">Lifting days per week</label>
@@ -370,6 +424,20 @@ function ProgramTab() {
             </div>
           ))}
           <WeeklyVolume days={plan.days} />
+          {personal && profile && !profile.aiEnabled && me.isAdmin && (
+            <p className="form-hint section">Want AI coach notes on this plan? <Link href="/admin" className="text-cyan">Add a free Gemini key on the Admin page</Link>. There&apos;s a step-by-step guide.</p>
+          )}
+          {personal && profile?.aiEnabled && (
+            <div className="card section">
+              <div className="card-header"><span className="card-title">Coach notes</span><span className="badge badge-cyan">AI</span></div>
+              {tips ? <ul className="personal-why">{tips.map((t, i) => <li key={i}>{t}</li>)}</ul> : (
+                <p className="form-hint">Advice on following this plan, from Google Gemini. Your stats and this plan are sent to Google to write it.</p>
+              )}
+              <button className="btn-secondary btn-sm" style={{ marginTop: 10 }} disabled={tipsBusy} onClick={getTips}>
+                {tipsBusy ? "Thinking…" : tips ? "New notes" : "Get coach notes"}
+              </button>
+            </div>
+          )}
           <button className="btn-primary btn-full" disabled={busy} onClick={save}>Save program</button>
           <p className="form-hint" style={{ marginTop: 8 }}>Saving makes this your active program.</p>
         </div>

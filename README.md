@@ -15,6 +15,7 @@ Self-hosted workout tracker where lifting and cardio are equal parts of the app.
 - **Exercise detail**: History, Charts and Records tabs for every exercise, from a library of about 120 plus your own.
 - **Progression coach**: set a rep range. When every working set reaches the top, your next session suggests more weight and pre-fills it (+5 lb upper / +10 lb lower, or +2.5 / +5 kg, adjustable per exercise).
 - **Builder**: generate one workout from focus, time, equipment and goal, or a full weekly program. Pick the split (full body, push/pull/legs, upper/lower, body part and more) and your training days, see weekly sets per muscle, and rebuild any single day. Edit anything before you use it.
+- **Personal plans**: tick **Base it on me** and the builder reads your last few months of workouts, plus your weight, height, body fat and age, to pick the days, split, goal, cardio and sets that suit you, and says why. Muscles you've been neglecting get extra sets, and coming back from a break starts lighter. Optional AI coach notes come from Google Gemini's free tier.
 - **Progress**: weekly volume, sets per muscle, best lifts, weekly distance and time, pace trends, a muscle heatmap, and best efforts (1K to marathon) taken from the fastest stretch of your GPS tracks. Finishing a workout shows any new lifting or cardio records.
 - **Food**: an optional calorie and macro diary on its own tab. Scan a barcode or search packaged foods from [Open Food Facts](https://world.openfoodfacts.org), add your own foods, and set daily goals.
 - **Body**: weight, body fat and tape measurements, each with its own chart.
@@ -50,11 +51,24 @@ services:
       - "7090:7090"
     volumes:
       - astrofit_data:/config
+    # environment:
+    #   GEMINI_API_KEY: ""   # optional, for AI coach notes in the builder
     restart: unless-stopped
 
 volumes:
   astrofit_data:
 ```
+
+## AI coach notes (optional)
+
+With **Base it on me** ticked, a built program can get a few written tips from Google Gemini. Its API has a free tier:
+
+1. Get a key at [Google AI Studio](https://aistudio.google.com/apikey). No card is needed.
+2. Paste it under **Admin → Optional services** and tap Save, then Test. That page has a step-by-step guide.
+
+You can set it as `GEMINI_API_KEY` on the container instead.
+
+Notes are only fetched when you tap **Get coach notes**, which keeps you well inside the free daily limit. Your training stats, body stats and the plan are sent to Google to write them. Everything else in the builder works without a key.
 
 ## Environment variables
 
@@ -64,6 +78,8 @@ volumes:
 | `SESSION_SECRET` | generated | Cookie encryption secret, at least 32 characters. If unset, one is generated and saved to `/config/.session_secret` |
 | `SESSION_COOKIE_SECURE` | `false` | Set to `true` when serving over HTTPS |
 | `PORT` | `7090` | Listening port |
+| `GEMINI_API_KEY` | unset | Optional. A free Google AI Studio key for coach notes. Usually set on the Admin page instead |
+| `GEMINI_MODEL` | `gemini-flash-latest` | Optional. The Gemini model for coach notes |
 | `V1_WEIGHT_UNIT` | `lb` | v1 upgrade only: the unit your v1 weights are in (`lb` or `kg`) |
 | `V1_DISTANCE_UNIT` | `mi` | v1 upgrade only: the unit your v1 distances are in (`mi` or `km`) |
 

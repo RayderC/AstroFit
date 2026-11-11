@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import GeminiSetup from "@/app/components/GeminiSetup";
 import Icon from "@/app/components/Icon";
 import Modal from "@/app/components/Modal";
 import { useMe } from "@/app/components/MeContext";
@@ -64,6 +65,11 @@ export default function AdminPage() {
           })}
         </div>
       )}
+      <div className="section">
+        <div className="section-header"><h2 className="section-title">Optional services</h2></div>
+        <GeminiSetup />
+        <p className="settings-hint">On Google&apos;s free tier, what&apos;s sent to Gemini may be used to improve Google&apos;s products. Coach notes send training and body stats and the plan, never names or usernames.</p>
+      </div>
       {creating && <CreateUser onClose={() => setCreating(false)} onDone={() => { setCreating(false); reload(); }} />}
       {resetting && <ResetPassword user={resetting} onClose={() => setResetting(null)} />}
     </div>

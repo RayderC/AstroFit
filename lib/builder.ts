@@ -1,11 +1,28 @@
 import { db } from "./db";
 import { listExercises } from "./repo/exercises";
 import type { Pattern } from "./exerciseSeed";
-import type { ExerciseDTO, RoutineBlockDTO } from "./types";
+import type { CoachRecommendation, ExerciseDTO, RoutineBlockDTO } from "./types";
 import { DEFAULT_WEEKDAYS, splitFor } from "./splits";
 
 // Rule-based workout & program builder. No network, no AI — just movement patterns,
 // your equipment, and what you've actually been doing.
+
+/**
+ * Tunes a built day to the person: extra sets for muscles they've neglected, fewer for beginners and
+ * anyone coming back from a break, and longer rests for older lifters. See recommend() in lib/coach.ts.
+ */
+function personalize(blocks: RoutineBlockDTO[], p: Pick<CoachRecommendation, "level" | "lagging" | "returning" | "older">) {
+  for (const b of blocks) {
+    if (b.kind !== "lift" || !b.exercise) continue;
+    let sets = b.setsCount;
+    if (b.exercise.primary.some(m => p.lagging.includes(m))) sets += 1;
+    if (p.level === "beginner") sets = Math.min(sets, 3);
+    if (p.returning) sets -= 1;
+    b.setsCount = Math.max(2, Math.min(5, sets));
+    if (p.older && b.restS != null) b.restS += 30;
+  }
+  return blocks;
+}
 
 export type Goal = "strength" | "muscle" | "general";
 export type Focus = "full" | "upper" | "lower" | "push" | "pull" | "legs" | `muscle:${string}`;
@@ -161,6 +178,7 @@ export function buildWorkout(userId: number, o: { focus: string; minutes: number
 export function buildProgram(userId: number, o: {
   goal: Goal; days: number; split?: string; weekdays?: number[]; seed?: number; minutes: number; equipment: string[];
   cardioDays: number; cardioMinutes: number; activityTypeId: number | null;
+  personal?: Pick<CoachRecommendation, "level" | "lagging" | "returning" | "older"> | null;
 }) {
   const n = Math.min(6, Math.max(2, o.days));
   const plan = splitFor(n, o.split);
@@ -172,7 +190,7 @@ export function buildProgram(userId: number, o: {
   const days: { weekday: number; name: string; blocks: RoutineBlockDTO[] }[] = plan.days.map((k, i) => ({
     weekday: weekdays[i],
     name: T[k].name + (plan.days.indexOf(k) !== i ? " 2" : ""),
-    blocks: fillDay(ctx, T[k].slots, count, o.goal, o.minutes),
+    blocks: o.personal ? personalize(fillDay(ctx, T[k].slots, count, o.goal, o.minutes), o.personal) : fillDay(ctx, T[k].slots, count, o.goal, o.minutes),
   }));
 
   if (o.cardioDays > 0 && o.activityTypeId) {
