@@ -14,11 +14,11 @@ export default function GeminiSetup() {
       description={<>Adds written tips to a program built with <b>Base it on me</b>. Google&apos;s Gemini API has a free tier, so this costs nothing. Everything else in the builder works without it.</>}
       guideTitle="How to get a free Gemini key (about 2 minutes)"
       status={data?.gemini}
-      fields={[{ id: "apiKey", label: "Gemini API key", placeholder: "Starts with AIza…" }]}
+      fields={[{ id: "apiKey", label: "Gemini API key", placeholder: "Starts with AQ. or AIza…" }]}
       steps={[
         <>Go to {ext("https://aistudio.google.com/apikey", "aistudio.google.com/apikey")} and sign in with any Google account. Accept the terms if it asks.</>,
         <>Click <b>Create API key</b>. If it asks for a project, let it make a new one. You don&apos;t need a card, and you shouldn&apos;t add one: without billing, the key stays on the free tier and can never be charged.</>,
-        <>Copy the key. It&apos;s a long line of letters and numbers that usually starts with <b>AIza</b>.</>,
+        <>Copy the key. It&apos;s a long line of letters and numbers that starts with <b>AQ.</b> (or <b>AIza</b> on older keys). Copy all of it.</>,
         <>Paste it below and tap <b>Save</b>, then <b>Test</b>.</>,
         <>In the builder, tick <b>Base it on me</b>, build a program, and tap <b>Get coach notes</b> under it.</>,
       ]}

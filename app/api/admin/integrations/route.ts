@@ -11,7 +11,8 @@ export const PUT = route(({ body }) => {
     if (b.gemini === null) setSetting("gemini_api_key", null);
     else {
       const key = typeof b.gemini?.apiKey === "string" ? b.gemini.apiKey.trim() : "";
-      if (!/^[\w-]{20,200}$/.test(key)) throw bad("That doesn't look like a Gemini API key. Copy the whole key from AI Studio.");
+      // Older keys look like "AIza…"; newer ones like "AQ.Ab8…", with a dot. Spaces mean something else got pasted.
+      if (!/^[\w.\-]{20,300}$/.test(key)) throw bad("That doesn't look like a Gemini API key. Copy the whole key from AI Studio, with no spaces.");
       setSetting("gemini_api_key", key);
     }
   }

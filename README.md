@@ -79,7 +79,7 @@ Notes are only fetched when you tap **Get coach notes**, which keeps you well in
 | `SESSION_COOKIE_SECURE` | `false` | Set to `true` when serving over HTTPS |
 | `PORT` | `7090` | Listening port |
 | `GEMINI_API_KEY` | unset | Optional. A free Google AI Studio key for coach notes. Usually set on the Admin page instead |
-| `GEMINI_MODEL` | `gemini-flash-latest` | Optional. The Gemini model for coach notes |
+| `GEMINI_MODEL` | `gemini-flash-lite-latest` | Optional. The Gemini model for coach notes |
 | `V1_WEIGHT_UNIT` | `lb` | v1 upgrade only: the unit your v1 weights are in (`lb` or `kg`) |
 | `V1_DISTANCE_UNIT` | `mi` | v1 upgrade only: the unit your v1 distances are in (`mi` or `km`) |
 

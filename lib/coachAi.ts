@@ -20,7 +20,10 @@ export function aiStatus() {
 }
 
 /** An alias Google points at its current Flash model, so this keeps working as models are replaced. */
-const model = () => (process.env.GEMINI_MODEL || "gemini-flash-latest").replace(/[^a-z0-9.\-]/gi, "");
+// Flash-Lite answers in about a second and has the biggest free allowance; a few short tips don't need more.
+const model = () => (process.env.GEMINI_MODEL || "gemini-flash-lite-latest").replace(/[^a-z0-9.\-]/gi, "");
+/** Used when the main model is overloaded. Also free, but slower, since it thinks before answering. */
+const FALLBACK_MODEL = "gemini-flash-latest";
 
 export type PlanSummary = { name: string; days: { weekday: string; name: string; exercises: string[] }[] };
 
@@ -52,22 +55,29 @@ Answer as plain text, one tip per line, each under 35 words, with no numbering, 
 
 ${describe(p, plan, weightUnit)}`;
 
-  let res: Response;
-  try {
-    res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model()}:generateContent`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json", "x-goog-api-key": key.key },
-      body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }], generationConfig: { temperature: 0.6, maxOutputTokens: 2048 } }),
-      signal: AbortSignal.timeout(30_000),
-    });
-  } catch {
-    throw new HttpError(502, "Couldn't reach Gemini. Try again in a moment.");
+  const ask = (m: string) => fetch(`https://generativelanguage.googleapis.com/v1beta/models/${m}:generateContent`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", "x-goog-api-key": key.key },
+    body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }], generationConfig: { temperature: 0.6, maxOutputTokens: 2048 } }),
+    signal: AbortSignal.timeout(45_000),
+  });
+
+  // Free-tier models are often briefly overloaded (503). Try again once, then the lighter Flash-Lite model.
+  const attempts = [model(), model(), FALLBACK_MODEL].filter((m, i, a) => i < 2 || m !== a[0]);
+  let res: Response | null = null;
+  for (const [i, m] of attempts.entries()) {
+    try { res = await ask(m); } catch { res = null; }
+    if (res && res.status !== 503 && res.status !== 500) break;
+    console.warn(`[coach] ${m} answered ${res?.status ?? "no response"}`);
+    if (i < attempts.length - 1) await new Promise(r => setTimeout(r, 1500));
   }
+  if (!res) throw new HttpError(502, "Couldn't reach Gemini. Try again in a moment.");
   if (!res.ok) {
     console.warn(`[coach] Gemini answered ${res.status}`);
-    if (res.status === 429) throw new HttpError(429, "Gemini's free daily limit is used up. Try again tomorrow.");
+    if (res.status === 429) throw new HttpError(429, "Gemini's free limit is used up for now. Try again later, or tomorrow.");
     if (res.status === 400 || res.status === 403) throw new HttpError(502, "Gemini didn't accept the key. Check it on the Admin page.");
     if (res.status === 404) throw new HttpError(502, "That Gemini model doesn't exist. Check GEMINI_MODEL.");
+    if (res.status === 503 || res.status === 500) throw new HttpError(503, "Gemini is busy right now. Try again in a minute.");
     throw new HttpError(502, "Gemini isn't available right now.");
   }
   const j = await res.json() as { candidates?: { content?: { parts?: { text?: string; thought?: boolean }[] } }[] };
