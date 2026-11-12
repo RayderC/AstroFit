@@ -42,6 +42,12 @@ Open **http://localhost:7090** and create the admin account.
 
 GPS tracking, live barcode scanning, notifications and installing the PWA need HTTPS when you aren't on localhost, because browsers restrict them on plain HTTP. Over plain HTTP you can still scan a barcode by taking a photo of it. Food lookups need the server to reach openfoodfacts.org. Put AstroFit behind a reverse proxy and set `SESSION_COOKIE_SECURE=true`.
 
+## Sign in with Amethyst (optional)
+
+If you run [Amethyst](https://github.com/RayderC/Amethyst), people can sign in here with their Amethyst account. In Amethyst, open **Dashboard → System** and turn on shared login. Then on this app's admin page, under **Sign in with Amethyst**, put in Amethyst's address and paste the shared secret. The login page gets a **Sign in with Amethyst** button.
+
+It signs in the account here with the same username as the Amethyst one, so create the accounts here first. Passwords keep working. You can also set `AMETHYST_URL` and `AMETHYST_SSO_SECRET` on the container instead.
+
 ## Docker Compose
 
 ```yaml

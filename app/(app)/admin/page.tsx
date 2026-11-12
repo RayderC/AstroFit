@@ -3,6 +3,7 @@
 import { useState } from "react";
 import BackupsCard from "@/app/components/BackupsCard";
 import GeminiSetup from "@/app/components/GeminiSetup";
+import SsoSetup from "@/app/components/SsoSetup";
 import UpdateNotice from "@/app/components/UpdateNotice";
 import Icon from "@/app/components/Icon";
 import Modal from "@/app/components/Modal";
@@ -73,6 +74,7 @@ export default function AdminPage() {
         <GeminiSetup />
         <p className="settings-hint">On Google&apos;s free tier, what&apos;s sent to Gemini may be used to improve Google&apos;s products. Coach notes send training and body stats and the plan, never names or usernames.</p>
       </div>
+      <SsoSetup appName="AstroFit" />
       <BackupsCard appName="AstroFit" what="every workout, routine, food and body entry" />
       {creating && <CreateUser onClose={() => setCreating(false)} onDone={() => { setCreating(false); reload(); }} />}
       {editingUser && <EditUser user={editingUser} self={editingUser.id === me.id} onClose={() => setEditingUser(null)} onDone={() => { setEditingUser(null); act(async () => {}); }} />}
