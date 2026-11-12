@@ -25,11 +25,17 @@ export function setPassword(id: number, password: unknown) {
   db.prepare("UPDATE users SET password = ?, token_version = token_version + 1 WHERE id = ?").run(bcrypt.hashSync(checkPassword(password), 12), id);
 }
 
-export function createUser(username: unknown, password: unknown, isAdmin: unknown) {
+function checkUsername(username: unknown, exceptId?: number): string {
   const name = String(username ?? "").trim().toLowerCase();
-  if (name.length < 2 || name.length > 40 || !/^[a-z0-9_.-]+$/.test(name)) throw bad("Username must be 2-40 letters or numbers");
+  if (name.length < 2 || name.length > 40 || !/^[a-z0-9_.-]+$/.test(name)) throw bad("Username must be 2-40 letters, numbers, dots, dashes or underscores");
+  const taken = db.prepare("SELECT id FROM users WHERE username = ?").get(name) as { id: number } | undefined;
+  if (taken && taken.id !== exceptId) throw bad("That username is taken");
+  return name;
+}
+
+export function createUser(username: unknown, password: unknown, isAdmin: unknown) {
+  const name = checkUsername(username);
   const pw = checkPassword(password);
-  if (db.prepare("SELECT 1 FROM users WHERE username = ?").get(name)) throw bad("That username is taken");
   const info = db.prepare("INSERT INTO users (username, password, is_admin) VALUES (?, ?, ?)").run(name, bcrypt.hashSync(pw, 12), isAdmin ? 1 : 0);
   return Number(info.lastInsertRowid);
 }
@@ -46,9 +52,11 @@ function assertOtherAdmin(id: number) {
   if (!others) throw bad("There must always be at least one active admin");
 }
 
-export function updateUser(actorId: number, id: number, p: { password?: unknown; disabled?: unknown; isAdmin?: unknown }) {
+export function updateUser(actorId: number, id: number, p: { username?: unknown; password?: unknown; disabled?: unknown; isAdmin?: unknown }) {
   const u = target(id);
   db.transaction(() => {
+    // Sessions are tied to the account, not the name, so renaming signs nobody out.
+    if (p.username !== undefined) db.prepare("UPDATE users SET username = ? WHERE id = ?").run(checkUsername(p.username, id), id);
     if (p.password !== undefined) setPassword(id, p.password);
     if (p.disabled !== undefined) {
       if (p.disabled) {

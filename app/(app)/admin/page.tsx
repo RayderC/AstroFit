@@ -13,7 +13,7 @@ export default function AdminPage() {
   const { me } = useMe();
   const { data, error, reload } = useApi<U[]>(me.isAdmin ? "/api/admin/users" : null);
   const [creating, setCreating] = useState(false);
-  const [resetting, setResetting] = useState<U | null>(null);
+  const [editingUser, setEditingUser] = useState<U | null>(null);
   const [err, setErr] = useState("");
 
   if (!me.isAdmin) return <div className="empty-state"><div className="empty-state-title">Admins only</div></div>;
@@ -23,7 +23,6 @@ export default function AdminPage() {
     try { await fn(); await reload(); }
     catch (e) { setErr((e as Error).message); }
   }
-  const patch = (u: U, body: object) => act(() => api(`/api/admin/users/${u.id}`, { method: "PATCH", body }));
   const remove = (u: U) => {
     if (!confirm(`Delete ${u.username} and all their workouts, routines and body data? This can't be undone.`)) return;
     act(() => api(`/api/admin/users/${u.id}`, { method: "DELETE" }));
@@ -55,9 +54,7 @@ export default function AdminPage() {
                   <span>Joined {fmtDate(u.createdAt)}</span>
                 </div>
                 <div className="flex gap-2" style={{ marginTop: 10, flexWrap: "wrap" }}>
-                  <button className="btn-secondary btn-sm" onClick={() => setResetting(u)}>Reset password</button>
-                  {!self && <button className="btn-secondary btn-sm" onClick={() => patch(u, { isAdmin: !u.isAdmin })}>{u.isAdmin ? "Remove admin" : "Make admin"}</button>}
-                  {!self && <button className="btn-secondary btn-sm" onClick={() => patch(u, { disabled: !u.disabled })}>{u.disabled ? "Enable" : "Disable"}</button>}
+                  <button className="btn-secondary btn-sm" onClick={() => setEditingUser(u)}><Icon name="edit" size={13} /> Edit</button>
                   {!self && <button className="btn-danger btn-sm" onClick={() => remove(u)}>Delete</button>}
                 </div>
               </div>
@@ -71,7 +68,7 @@ export default function AdminPage() {
         <p className="settings-hint">On Google&apos;s free tier, what&apos;s sent to Gemini may be used to improve Google&apos;s products. Coach notes send training and body stats and the plan, never names or usernames.</p>
       </div>
       {creating && <CreateUser onClose={() => setCreating(false)} onDone={() => { setCreating(false); reload(); }} />}
-      {resetting && <ResetPassword user={resetting} onClose={() => setResetting(null)} />}
+      {editingUser && <EditUser user={editingUser} self={editingUser.id === me.id} onClose={() => setEditingUser(null)} onDone={() => { setEditingUser(null); act(async () => {}); }} />}
     </div>
   );
 }
@@ -98,19 +95,45 @@ function CreateUser({ onClose, onDone }: { onClose: () => void; onDone: () => vo
   );
 }
 
-function ResetPassword({ user, onClose }: { user: U; onClose: () => void }) {
+/** Everything about an account in one place: name, password, admin, and whether it can sign in. */
+function EditUser({ user, self, onClose, onDone }: { user: U; self: boolean; onClose: () => void; onDone: () => void }) {
+  const [username, setUsername] = useState(user.username);
   const [password, setPassword] = useState("");
+  const [isAdmin, setIsAdmin] = useState(user.isAdmin);
+  const [disabled, setDisabled] = useState(user.disabled);
   const [err, setErr] = useState("");
   async function save() {
     setErr("");
-    try { await api(`/api/admin/users/${user.id}`, { method: "PATCH", body: { password } }); onClose(); }
-    catch (e) { setErr((e as Error).message); }
+    const body: Record<string, unknown> = {};
+    if (username.trim().toLowerCase() !== user.username) body.username = username;
+    if (password) body.password = password;
+    if (isAdmin !== user.isAdmin) body.isAdmin = isAdmin;
+    if (disabled !== user.disabled) body.disabled = disabled;
+    if (!Object.keys(body).length) return onClose();
+    try {
+      await api(`/api/admin/users/${user.id}`, { method: "PATCH", body });
+      // A new password for yourself ends this session too.
+      if (self && password) window.location.replace("/login");
+      else onDone();
+    } catch (e) { setErr((e as Error).message); }
   }
   return (
-    <Modal title={`Reset password for ${user.username}`} onClose={onClose} footer={<button className="btn-primary" onClick={save} disabled={password.length < 8}>Set password</button>}>
+    <Modal title={`Edit ${user.username}`} onClose={onClose}
+      footer={<button className="btn-primary" onClick={save} disabled={username.trim().length < 2 || (password.length > 0 && password.length < 8)}>Save</button>}>
       <div className="form-stack">
         {err && <p className="form-error">{err}</p>}
-        <div className="form-group"><label className="form-label" htmlFor="rp-pw">New password (8+ characters)</label><input id="rp-pw" type="password" className="form-input" autoComplete="new-password" value={password} onChange={e => setPassword(e.target.value)} autoFocus /></div>
+        <div className="form-group"><label className="form-label" htmlFor="eu-name">Username</label>
+          <input id="eu-name" className="form-input" autoCapitalize="none" autoComplete="off" maxLength={40} value={username} onChange={e => setUsername(e.target.value)} />
+          <p className="form-hint">They sign in with the new name from now on. Nobody is signed out.</p></div>
+        <div className="form-group"><label className="form-label" htmlFor="eu-pw">New password</label>
+          <input id="eu-pw" type="password" className="form-input" autoComplete="new-password" maxLength={72} placeholder="Leave empty to keep the current one" value={password} onChange={e => setPassword(e.target.value)} />
+          <p className="form-hint">8 or more characters. Setting one signs {self ? "you" : user.username} out of every device.</p></div>
+        {!self && (
+          <>
+            <label className="check-row"><input type="checkbox" checked={isAdmin} onChange={e => setIsAdmin(e.target.checked)} /> Admin</label>
+            <label className="check-row"><input type="checkbox" checked={disabled} onChange={e => setDisabled(e.target.checked)} /> Disabled (can&apos;t sign in)</label>
+          </>
+        )}
       </div>
     </Modal>
   );

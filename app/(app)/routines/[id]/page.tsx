@@ -17,6 +17,15 @@ export default function RoutinePage({ params }: { params: Promise<{ id: string }
   const [blocks, setBlocks] = useState<RoutineBlockDTO[]>([]);
   const [dirty, setDirty] = useState(false);
   const [msg, setMsg] = useState("");
+  const [confirmDelete, setConfirmDelete] = useState(false);
+
+  async function remove() {
+    // A second tap confirms, so it works in home-screen apps where browser popups can be swallowed.
+    if (!confirmDelete) { setConfirmDelete(true); return; }
+    setMsg("");
+    try { await api(`/api/routines/${id}`, { method: "DELETE" }); router.push("/routines"); }
+    catch (e) { setConfirmDelete(false); setMsg((e as Error).message); }
+  }
 
   useEffect(() => {
     if (!data) return;
@@ -51,10 +60,10 @@ export default function RoutinePage({ params }: { params: Promise<{ id: string }
       <div className="flex gap-2 items-center" style={{ marginTop: 22, flexWrap: "wrap" }}>
         <button className="btn-primary" onClick={start} disabled={!blocks.length}><Icon name="play" size={14} /> Start workout</button>
         <button className="btn-secondary" onClick={save} disabled={!dirty}>Save</button>
-        <button className="btn-danger" style={{ marginLeft: "auto" }} onClick={async () => {
-          if (!confirm("Delete this routine? Past workouts stay in your history.")) return;
-          await api(`/api/routines/${id}`, { method: "DELETE" }); router.push("/routines");
-        }}>Delete</button>
+        <button className="btn-danger" style={{ marginLeft: "auto" }} onClick={remove} onBlur={() => setConfirmDelete(false)}>
+          {confirmDelete ? "Tap again to delete" : "Delete"}
+        </button>
+        {confirmDelete && <span className="form-hint" style={{ width: "100%" }}>Past workouts stay in your history.</span>}
         {msg && <span className="text-muted" style={{ fontSize: 13 }}>{msg}</span>}
       </div>
     </div>

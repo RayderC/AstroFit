@@ -1672,3 +1672,7 @@ button.row-card { width: 100%; text-align: left; cursor: pointer; font-family: i
 .key-input { font-family: var(--font-mono); font-size: 12px; }
 .key-actions { flex-wrap: wrap; }
 .key-ok { color: var(--success); font-size: 13px; }
+
+/* ── Routine cards: edit and delete without opening the routine ── */
+.routine-actions { display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
+.routine-actions .btn-sm { display: inline-flex; align-items: center; gap: 5px; text-decoration: none; }

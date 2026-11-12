@@ -9,8 +9,17 @@ import type { RoutineDTO } from "@/lib/types";
 
 export default function RoutinesPage() {
   const router = useRouter();
-  const { data } = useApi<RoutineDTO[]>("/api/routines");
+  const { data, reload } = useApi<RoutineDTO[]>("/api/routines");
   const [err, setErr] = useState("");
+  // Delete asks for a second tap on the same button, not a browser popup, which home-screen apps can swallow.
+  const [confirming, setConfirming] = useState<number | null>(null);
+
+  async function remove(id: number) {
+    if (confirming !== id) { setConfirming(id); return; }
+    setErr(""); setConfirming(null);
+    try { await api(`/api/routines/${id}`, { method: "DELETE" }); await reload(); }
+    catch (e) { setErr((e as Error).message); }
+  }
 
   async function start(id: number) {
     setErr("");
@@ -33,6 +42,12 @@ export default function RoutinesPage() {
       </div>
       <div className="row-body">{r.blocks.map(b => b.kind === "lift" ? `${b.setsCount}× ${b.exercise?.displayName}` : b.activity?.name).join(" · ") || "Empty"}</div>
       <div className="row-stats">{r.lastDone ? <span>Last done {fmtDate(r.lastDone)}</span> : <span>Never done</span>}{r.programName && <span className="badge badge-purple">{r.programName}</span>}</div>
+      <div className="routine-actions">
+        <Link href={`/routines/${r.id}`} className="btn-secondary btn-sm"><Icon name="edit" size={13} /> Edit</Link>
+        <button className={confirming === r.id ? "btn-danger btn-sm" : "btn-secondary btn-sm"} onClick={() => remove(r.id)} onBlur={() => setConfirming(c => (c === r.id ? null : c))}>
+          <Icon name="trash" size={13} /> {confirming === r.id ? "Tap again to delete" : "Delete"}
+        </button>
+      </div>
     </div>
   );
 

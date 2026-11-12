@@ -3,7 +3,7 @@ import { deleteUser, updateUser } from "@/lib/repo/users";
 
 type P = { id: string };
 
-// PATCH { password?, disabled?, isAdmin? }
+// PATCH { username?, password?, disabled?, isAdmin? }
 export const PATCH = route<P>(({ user, params, body }) => {
   updateUser(user.id, int(params.id), body ?? {});
   return { ok: true };
