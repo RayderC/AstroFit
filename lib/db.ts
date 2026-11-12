@@ -1,7 +1,7 @@
 import Database from "better-sqlite3";
 import fs from "fs";
 import path from "path";
-import { SCHEMA_V1, SCHEMA_V2, SCHEMA_V3, SCHEMA_V4, seedLibrary } from "./schema";
+import { SCHEMA_V1, SCHEMA_V2, SCHEMA_V3, SCHEMA_V4, SCHEMA_V5, seedLibrary } from "./schema";
 import { isV1Database, migrateFromV1 } from "./migrateV1";
 
 export const DB_PATH = process.env.DATABASE_PATH || path.join(process.cwd(), "astrofit.db");
@@ -33,7 +33,12 @@ const MIGRATIONS: ((db: Database.Database) => void)[] = [
   db => { db.exec(SCHEMA_V3); },
   // 4: height, sex and birth year for personal plans
   db => { db.exec(SCHEMA_V4); },
+  // 5: sign-in history
+  db => { db.exec(SCHEMA_V5); },
 ];
+
+/** The schema version this build knows. A backup from a newer build can't be restored into it. */
+export const SCHEMA_VERSION = MIGRATIONS.length;
 
 export function migrate(db: Database.Database) {
   const current = db.pragma("user_version", { simple: true }) as number;
@@ -47,6 +52,12 @@ export function migrate(db: Database.Database) {
 }
 
 const g = globalThis as unknown as { __astrofitDb?: Database.Database };
+
+/** Closes the database so a restore can swap the file. The next query opens it again. */
+export function closeDb() {
+  g.__astrofitDb?.close();
+  g.__astrofitDb = undefined;
+}
 
 /**
  * Opens on first use, not on import. `next build` imports every route in parallel workers, and opening

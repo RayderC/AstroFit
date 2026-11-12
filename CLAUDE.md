@@ -76,3 +76,7 @@ A phone suspends the page while the screen is off, so `lib/push.ts` keeps a copy
 - Use named volumes (`-v astrofit_data:/config`). WAL locking breaks on Windows bind mounts.
 - `docker-entrypoint.sh` starts as root only to chown `/config`, then re-runs itself as the `node` user with `setpriv`. Don't add a `USER` line to the Dockerfile, or bind mounts fail with "Permission denied".
 - `docker-entrypoint.sh` generates `SESSION_SECRET` into `/config/.session_secret` when it isn't set.
+
+## Backups, updates, sign-ins
+
+`lib/backupCore.ts` and `lib/updateCore.ts` are shared, unchanged, with NitroLog, ComicOrbit, SkyBit and Amethyst. Fix them in all five. `lib/backup.ts` is AstroFit's config; `instrumentation.ts` runs the nightly copy and the daily update check. The restore route uses `route(..., { raw: true })` so the wrapper doesn't read the upload. `sign_ins` is schema V5. The Dockerfile writes `/app/.build-time` for the update check.

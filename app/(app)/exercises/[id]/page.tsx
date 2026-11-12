@@ -74,7 +74,7 @@ export default function ExerciseDetailPage({ params }: { params: Promise<{ id: s
         }}>Remove</button>}
       </div>
 
-      {data.suggestion && (
+      {data.suggestion && !data.suggestion.stalled && (
         <div className={`coach coach-${data.suggestion.status}`} style={{ marginBottom: 14 }}>
           <span>
             {data.suggestion.status === "increase" && <><Icon name="up" size={14} /> <b>Next time:</b> {w(data.suggestion.nextWeightKg)} for {data.suggestion.repMin}+ reps</>}
@@ -82,6 +82,11 @@ export default function ExerciseDetailPage({ params }: { params: Promise<{ id: s
             {data.suggestion.status === "hold" && <>Next time: repeat {w(data.suggestion.lastWeightKg)} and get every set to {data.suggestion.repMin}+ reps</>}
             <span className="text-muted"> · range {data.suggestion.repMin}–{data.suggestion.repMax}{data.suggestion.inferred ? " (from your history)" : ""}</span>
           </span>
+        </div>
+      )}
+      {data.suggestion?.stalled && (
+        <div className="coach coach-stalled" style={{ marginBottom: 14 }}>
+          <span><b>Stuck for {data.suggestion.stalled.sessions} sessions.</b> Try a lighter week: {w(data.suggestion.stalled.resetWeightKg)} for {data.suggestion.repMax} reps, then build back up. Sleep, food and a deload week can help too.</span>
         </div>
       )}
 

@@ -38,6 +38,8 @@ export type Suggestion = {
   lastWeightKg: number;
   nextWeightKg: number;
   lastDate: string;
+  /** No new best (estimated max) for this many sessions in a row, with a lighter weight to reset to. */
+  stalled: { sessions: number; resetWeightKg: number } | null;
 };
 
 export type CardioDTO = {

@@ -13,14 +13,16 @@ Self-hosted workout tracker where lifting and cardio are equal parts of the app.
 - **Lift logging**: a Previous column, warm-up/drop/failure set tags, a per-exercise rest timer with a phone notification when rest ends, supersets and sticky exercise notes. Swipe a set left to delete it.
 - **Cardio logging**: time, distance, heart rate, elevation and calories, or live GPS tracking with current pace, splits, spoken updates each mile or km, auto-pause and a route map. A track survives the page reloading, and rides show speed instead of pace.
 - **Exercise detail**: History, Charts and Records tabs for every exercise, from a library of about 120 plus your own.
-- **Progression coach**: set a rep range. When every working set reaches the top, your next session suggests more weight and pre-fills it (+5 lb upper / +10 lb lower, or +2.5 / +5 kg, adjustable per exercise).
+- **Progression coach**: set a rep range. When every working set reaches the top, your next session suggests more weight and pre-fills it (+5 lb upper / +10 lb lower, or +2.5 / +5 kg, adjustable per exercise). When a lift goes three sessions without a new best, it says so and offers a lighter week about 10% down, with one tap to fill it in.
 - **Builder**: generate one workout from focus, time, equipment and goal, or a full weekly program. Pick the split (full body, push/pull/legs, upper/lower, body part and more) and your training days, see weekly sets per muscle, and rebuild any single day. Edit anything before you use it.
 - **Personal plans**: tick **Base it on me** and the builder reads your last few months of workouts, plus your weight, height, body fat and age, to pick the days, split, goal, cardio and sets that suit you, and says why. Muscles you've been neglecting get extra sets, and coming back from a break starts lighter. Optional AI coach notes come from Google Gemini's free tier.
 - **Progress**: weekly volume, sets per muscle, best lifts, weekly distance and time, pace trends, a muscle heatmap, and best efforts (1K to marathon) taken from the fastest stretch of your GPS tracks. Finishing a workout shows any new lifting or cardio records.
 - **Food**: an optional calorie and macro diary on its own tab. Scan a barcode or search packaged foods from [Open Food Facts](https://world.openfoodfacts.org), add your own foods, and set daily goals.
 - **Body**: weight, body fat and tape measurements, each with its own chart.
 - **Your data**: import a Strong CSV export, and export everything as CSV or JSON.
-- **Multi-user**: separate data per person, with an admin page for accounts.
+- **Multi-user**: separate data per person, with an admin page for accounts. Admins can sign anyone out of every device, and Settings shows your recent sign-ins and wrong-password tries.
+- **Backups**: a copy of the database every night (the last 7 are kept in `/config/backups`), plus **Download backup** and restore on the Admin page. A copy is saved before every restore, so a restore can be undone.
+- **Update notice**: the Admin page says when a newer image is on Docker Hub. It checks once a day and sends nothing about you.
 - **Installable**: works as a PWA on your phone.
 
 There are no XP, levels, streaks or challenges.

@@ -185,11 +185,21 @@ export default function LiftCard({ sessionId, block, finished, onSession, onSets
           : <button className="mini-chip ghost" onClick={() => setModal("note")}><Icon name="note" size={12} /> Note</button>}
       </div>
 
-      {!finished && sug && (
+      {!finished && sug && !sug.stalled && (
         <div className={`coach coach-${sug.status}`}>
           {sug.status === "increase" && <span><Icon name="up" size={14} /> <b>Add weight:</b> you hit {sug.repMax} reps at {fmtWeight(sug.lastWeightKg, unit)} {unit} — try <b>{fmtWeight(sug.nextWeightKg, unit)} {unit}</b></span>}
           {sug.status === "build" && <span>Stay at {fmtWeight(sug.lastWeightKg, unit)} {unit} and push every set to {sug.repMax} reps.</span>}
           {sug.status === "hold" && <span>Repeat {fmtWeight(sug.lastWeightKg, unit)} {unit} — get every set to at least {sug.repMin} reps.</span>}
+        </div>
+      )}
+      {!finished && sug?.stalled && (
+        <div className="coach coach-stalled">
+          <span><b>No new best in {sug.stalled.sessions} sessions.</b> A lighter week often fixes that: {fmtWeight(sug.stalled.resetWeightKg, unit)} {unit}, then build back up.</span>
+          <button type="button" className="mini-chip" onClick={() => setDrafts(x => {
+            const next = { ...x };
+            for (const s of block.sets) if (!s.done) next[s.id] = { ...(next[s.id] ?? { w: "", r: "", d: "" }), w: fmtWeight(sug.stalled!.resetWeightKg, unit) };
+            return next;
+          })}>Use {fmtWeight(sug.stalled.resetWeightKg, unit)} {unit}</button>
         </div>
       )}
 

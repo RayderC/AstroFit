@@ -71,6 +71,7 @@ export default function HistoryPage() {
             );
           })}
         </div>
+        <div className="cal-legend"><span><i className="dot lift" /> Lifting</span><span><i className="dot cardio" /> Cardio</span></div>
         <div className="row-stats" style={{ marginTop: 12 }}>
           <span><b>{totals.n}</b> workouts</span>
           <span><b>{Math.round(kgTo(totals.v, me.weightUnit)).toLocaleString()}</b> {me.weightUnit} lifted</span>

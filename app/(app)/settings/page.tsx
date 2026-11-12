@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useState } from "react";
 import Icon from "@/app/components/Icon";
 import PushCard from "@/app/components/PushCard";
+import SignInsCard from "@/app/components/SignInsCard";
 import { RestModal } from "@/app/components/session/LiftCard";
 import { useMe } from "@/app/components/MeContext";
 import { api } from "@/lib/client";
@@ -72,6 +73,7 @@ export default function SettingsPage() {
           <div className="flex gap-2 items-center"><button className="btn-primary" disabled={!pw.current || pw.next.length < 8}>Change</button>{msg && <span className="text-muted" style={{ fontSize: 13 }}>{msg}</span>}</div>
         </div>
       </form>
+      <SignInsCard />
 
       {rest && <RestModal value={me.restDefault} showDefault={false} onClose={() => setRest(false)} onSave={v => set({ restDefault: v })} />}
     </div>

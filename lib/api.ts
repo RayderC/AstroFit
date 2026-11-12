@@ -57,7 +57,8 @@ export function clientIp(req: NextRequest) {
 const MAX_BODY_BYTES = 60 * 1024 * 1024;
 
 type Ctx<P> = { req: NextRequest; user: UserRow; params: P; body: any };
-type RouteOpts = { admin?: boolean };
+/** `raw`: leave the body unread, for uploads the handler streams itself (a backup can be large). */
+type RouteOpts = { admin?: boolean; raw?: boolean };
 
 /** Wraps a route handler with auth, CSRF, JSON parsing and error handling. */
 export function route<P = Record<string, string>>(
@@ -78,7 +79,7 @@ export function route<P = Record<string, string>>(
       if (req.method !== "GET" && !checkRateLimit(`w:${user.id}`, 600, 60_000)) throw new HttpError(429, "Slow down");
 
       let body: any = undefined;
-      if (req.method !== "GET" && req.method !== "DELETE") {
+      if (req.method !== "GET" && req.method !== "DELETE" && !opts.raw) {
         if (Number(req.headers.get("content-length")) > MAX_BODY_BYTES) throw new HttpError(413, "That's too large");
         const ct = req.headers.get("content-type") ?? "";
         if (ct.includes("application/json")) body = await req.json().catch(() => { throw bad("Invalid JSON"); });

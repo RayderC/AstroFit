@@ -24,6 +24,29 @@ function lastWorkingSets(userId: number, exerciseId: number, excludeSessionId: n
   return { block, sets };
 }
 
+/**
+ * How many sessions since your best on this lift, newest first. `bests` are each session's best estimated max.
+ * A best within half a percent counts, so a tiny wobble isn't a new record or a miss.
+ */
+export function sessionsSinceBest(bests: number[]): number {
+  if (!bests.length) return 0;
+  const top = Math.max(...bests);
+  return bests.findIndex(b => b >= top * 0.995);
+}
+
+const STALL_SESSIONS = 3;
+const RECENT_DAYS = 60;
+
+/** Each recent finished session's best estimated max (Epley) on this lift, newest first. */
+function recentBests(userId: number, exerciseId: number, excludeSessionId: number | null): number[] {
+  const since = new Date(Date.now() - RECENT_DAYS * 86400_000).toISOString();
+  return (db.prepare(`
+    SELECT MAX(s.weight_kg * (1 + s.reps / 30.0)) AS best
+    FROM sets s JOIN blocks b ON b.id = s.block_id JOIN sessions se ON se.id = b.session_id
+    WHERE se.user_id = ? AND b.exercise_id = ? AND se.ended_at IS NOT NULL AND se.id IS NOT ? AND se.started_at >= ? AND ${WORKING}
+    GROUP BY se.id ORDER BY se.started_at DESC LIMIT 8`).all(userId, exerciseId, excludeSessionId, since) as { best: number }[]).map(r => r.best);
+}
+
 /** Infer a rep range from the reps you usually do on this exercise. */
 export function inferRange(userId: number, exerciseId: number): [number, number] | null {
   const reps = (db.prepare(`
@@ -79,7 +102,12 @@ export function suggest(
   else if (atTop.some(s => s.reps < repMin!)) status = "hold";
 
   const inc = incrementFor(userId, exerciseId, opts.unit);
+  // Stuck: three sessions or more without a new best, and not about to add weight anyway. Resetting about 10%
+  // lighter and building back up usually gets a lift moving again.
+  const since = status === "increase" ? 0 : sessionsSinceBest(recentBests(userId, exerciseId, opts.excludeSessionId ?? null));
+  const stalled = since >= STALL_SESSIONS ? { sessions: since, resetWeightKg: roundLoadable(top * 0.9, opts.unit) } : null;
   return {
+    stalled,
     status,
     repMin,
     repMax,
